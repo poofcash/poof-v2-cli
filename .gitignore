@@ -1,0 +1,9 @@
+node_modules
+.env
+.idea
+dist
+yarn-error.log
+build/circuits
+circuits
+.husky
+src/generated

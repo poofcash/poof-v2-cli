@@ -1,0 +1,48 @@
+{
+  "name": "@poofcash/poof-v2-kit",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf ./dist",
+    "build": "yarn tsc -b",
+    "prepublishOnly": "yarn clean && yarn build",
+    "prepare": "husky install",
+    "typechain": "typechain --target=web3-v1 ./src/artifacts/*.json --out-dir src/generated",
+    "postinstall": "yarn typechain"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@celo/contractkit": "^1.2.4",
+    "@types/bn.js": "^5.1.0",
+    "@types/decimal.js": "^7.4.0",
+    "@types/eth-sig-util": "^2.1.0",
+    "axios": "^0.19.2",
+    "circom": "0.0.35",
+    "circomlib": "git+https://github.com/poofcash/circomlib.git#3b492f9801573eebcfe1b6c584afe8a3beecf2b4",
+    "commander": "^5.1.0",
+    "decimal.js": "^10.2.1",
+    "dotenv": "^8.2.0",
+    "eth-sig-util": "^3.0.1",
+    "fflate": "^0.7.1",
+    "fixed-merkle-tree": "^0.3.4",
+    "gas-price-oracle": "^0.2.2",
+    "snarkjs": "git+https://github.com/poofcash/snarkjs.git#869181cfaf7526fe8972073d31655493a04326d5",
+    "web3": "^1.2.8",
+    "web3-eth-contract": "^1.5.1",
+    "web3-utils": "^1.5.1",
+    "websnark": "git+https://github.com/poofcash/websnark.git#a0226866cc9d9d9f7195ffe439709d25e69ca680",
+    "yargs": "^17.0.1"
+  },
+  "devDependencies": {
+    "@typechain/web3-v1": "^3.0.0",
+    "eslint": "^7.0.0",
+    "husky": "^7.0.0",
+    "prettier": "^2.3.0",
+    "pretty-quick": "^3.1.1",
+    "typechain": "^5.1.2",
+    "typescript": "^4.0.5"
+  }
+}
