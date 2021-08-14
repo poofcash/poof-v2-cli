@@ -1,4 +1,4 @@
-import { toBN, AbiItem } from "web3-utils";
+import { toBN, AbiItem, toWei, fromWei } from "web3-utils";
 import { Contract, EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
@@ -38,7 +38,9 @@ export class PoofKit {
   private provingKeys: ProvingKeys = {};
   private groth16: any;
 
-  constructor(private web3: Web3, groth16: any) {
+  constructor(private web3: Web3) {}
+
+  initialize(groth16: any) {
     this.groth16 = groth16;
   }
 
@@ -106,6 +108,32 @@ export class PoofKit {
         tokenAddress
       );
       return await token.methods.allowance(owner, poolAddress).call();
+    }
+    return null;
+  }
+
+  async balance(currency: string, owner: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const { tokenAddress } = poolMatch;
+      const token = new this.web3.eth.Contract(
+        ERC20Artifact.abi as AbiItem[],
+        tokenAddress
+      );
+      return await token.methods.balanceOf(owner).call();
+    }
+    return null;
+  }
+
+  async poolBalance(currency: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const { tokenAddress, poolAddress } = poolMatch;
+      const token = new this.web3.eth.Contract(
+        ERC20Artifact.abi as AbiItem[],
+        tokenAddress
+      );
+      return await token.methods.balanceOf(poolAddress).call();
     }
     return null;
   }
@@ -195,15 +223,15 @@ export class PoofKit {
         const { gasPrices, celoPrices, rewardAccount, poofServiceFee } =
           relayerStatus.data;
         const gasPrice = gasPrices["min"] || 0.5;
-        const currencyCeloPrice = celoPrices[currency];
+        const currencyCeloPrice = celoPrices[currency.toLowerCase()];
         fee = calculateFee(
           gasPrice,
-          amount.toString(),
+          fromWei(amount), // HARDCODE: 18 decimal assumption
           0,
           currencyCeloPrice,
           poofServiceFee,
           decimals,
-          2e9
+          5e5
         );
         if (fee.gt(amount)) {
           throw new Error("Fee is higher than the redeem amount");
@@ -213,17 +241,17 @@ export class PoofKit {
 
       const { proof, args } = await this.controller.withdraw(poof, {
         account: latestAccount,
-        amount,
+        amount: amount.sub(fee),
         recipient,
         publicKey,
         fee,
         relayer,
       });
       if (relayerURL) {
-        console.info("Sending swap transaction through relay");
+        console.info("Sending withdraw transaction through relay");
         try {
           const relay = await axios.post(relayerURL + "/v2/withdraw", {
-            poolAddress,
+            contract: poolAddress,
             proof,
             args,
           });
@@ -266,7 +294,7 @@ export class PoofKit {
       ) as unknown as Poof;
       const latestAccount = await this.getLatestAccount(privateKey, poof);
       if (!latestAccount) {
-        return 0;
+        return "0";
       }
       return latestAccount.amount.toString();
     }
@@ -304,5 +332,19 @@ export class PoofKit {
       privateKey,
       unpackEncryptedMessage(event.returnValues.encryptedAccount)
     );
+  }
+
+  async verify(currency: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi as AbiItem[],
+        poolMatch.poolAddress
+      ) as unknown as Poof;
+      const token = await poof.methods.token().call();
+      const owner = await poof.methods.owner().call();
+      return { token, owner };
+    }
+    return null;
   }
 }

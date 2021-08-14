@@ -18,7 +18,8 @@ let poofKit, netId, explorer, senderAccount;
 const init = async () => {
   netId = await kit.web3.eth.getChainId();
   const groth16 = await buildGroth16();
-  poofKit = new PoofKit(kit.web3, groth16);
+  poofKit = new PoofKit(kit.web3);
+  poofKit.initialize(groth16);
   explorer =
     netId === 44787
       ? "https://alfajores-blockscout.celo-testnet.org"
@@ -145,7 +146,7 @@ yargs
     () => {
       yargs.positional("currency", {
         type: "string",
-        describe: "The ERC20 symbol check hidden balance of",
+        describe: "The ERC20 symbol to check hidden balance of",
       });
     },
     async (argv) => {
@@ -153,6 +154,22 @@ yargs
       const { currency } = argv;
       const balance = await poofKit.hiddenBalance(POOF_PRIVATE_KEY, currency);
       console.log(`${balance} ${currency}`);
+    }
+  )
+  .command(
+    "verify [currency]",
+    "Get pool details",
+    () => {
+      yargs.positional("currency", {
+        type: "string",
+        describe: "The ERC20 symbol to verify",
+      });
+    },
+    async (argv) => {
+      await init();
+      const { currency } = argv;
+      const res = await poofKit.verify(currency);
+      console.log(res);
     }
   )
   .command(

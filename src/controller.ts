@@ -165,7 +165,7 @@ export class Controller {
       accountCommitments,
     }: WithdrawParams
   ) {
-    const newAmount = account.amount.sub(amount).sub(fee);
+    const newAmount = account.amount.sub(amount);
     const newAccount = new Account({ amount: newAmount.toString() });
 
     accountCommitments =
@@ -203,7 +203,7 @@ export class Controller {
     });
 
     const input = {
-      amount: amount.sub(fee),
+      amount: amount,
       extDataHash,
 
       inputAmount: account.amount,
