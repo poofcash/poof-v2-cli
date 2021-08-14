@@ -1,6 +1,6 @@
 {
   "name": "@poofcash/poof-v2-kit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@celo/contractkit": "^1.2.4",
+    "@typechain/web3-v1": "^3.0.0",
     "@types/bn.js": "^4.11.6",
     "@types/decimal.js": "^7.4.0",
     "@types/eth-sig-util": "^2.1.0",
@@ -30,6 +31,7 @@
     "fixed-merkle-tree": "^0.3.4",
     "gas-price-oracle": "^0.2.2",
     "snarkjs": "git+https://github.com/poofcash/snarkjs.git#869181cfaf7526fe8972073d31655493a04326d5",
+    "typechain": "^5.1.2",
     "web3": "^1.5.1",
     "web3-eth-contract": "^1.5.1",
     "web3-utils": "^1.5.1",
@@ -37,12 +39,10 @@
     "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "@typechain/web3-v1": "^3.0.0",
     "eslint": "^7.0.0",
     "husky": "^7.0.0",
     "prettier": "^2.3.0",
     "pretty-quick": "^3.1.1",
-    "typechain": "^5.1.2",
     "typescript": "^4.0.5"
   }
 }
