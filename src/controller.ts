@@ -7,12 +7,11 @@ import {
   getExtWithdrawArgsHash,
   packEncryptedMessage,
 } from "./utils";
-import { EventData } from "web3-eth-contract";
 import { Account } from "./account";
 import MerkleTree from "fixed-merkle-tree";
 import { Address } from "@celo/contractkit";
-import websnarkUtils from "websnark/src/utils";
 import BN from "bn.js";
+import { utils } from "ffjavascript";
 import { Poof } from "./generated/Poof";
 
 type DepositParams = {
@@ -45,12 +44,12 @@ const fetchAccountCommitments = async (poof: Poof) => {
 export class Controller {
   private merkleTreeHeight: number;
   private provingKeys: any;
-  private groth16: any;
+  private snarkjs: any;
 
-  constructor({ merkleTreeHeight = 20, provingKeys, groth16 }) {
+  constructor({ merkleTreeHeight = 20, snarkjs, provingKeys }) {
     this.merkleTreeHeight = Number(merkleTreeHeight);
+    this.snarkjs = snarkjs;
     this.provingKeys = provingKeys;
-    this.groth16 = groth16;
   }
 
   _updateTree(tree: any, element: any) {
@@ -123,13 +122,17 @@ export class Controller {
       outputCommitment: newAccount.commitment,
     };
 
-    const proofData = await websnarkUtils.genWitnessAndProve(
-      this.groth16,
-      input,
-      this.provingKeys.depositCircuit,
-      this.provingKeys.depositProvingKey
+    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
+      utils.stringifyBigInts(input),
+      this.provingKeys.depositWasm,
+      this.provingKeys.depositZkey
     );
-    const { proof } = websnarkUtils.toSolidityInput(proofData);
+    const [proof] = (
+      await this.snarkjs.plonk.exportSolidityCallData(
+        utils.unstringifyBigInts(proofData),
+        []
+      )
+    ).split(",");
 
     const args = {
       amount: toFixedHex(amount),
@@ -157,19 +160,18 @@ export class Controller {
     poof: Poof,
     {
       account,
-      amount,
+      amount: withdrawAmount,
       recipient,
       publicKey,
       fee = toBN(0),
       relayer = 0,
-      accountCommitments,
     }: WithdrawParams
   ) {
+    const amount = withdrawAmount.add(fee);
     const newAmount = account.amount.sub(amount);
     const newAccount = new Account({ amount: newAmount.toString() });
 
-    accountCommitments =
-      accountCommitments || (await fetchAccountCommitments(poof));
+    const accountCommitments = await fetchAccountCommitments(poof);
     const accountTree = new MerkleTree(
       this.merkleTreeHeight,
       accountCommitments,
@@ -177,9 +179,8 @@ export class Controller {
         hashFunction: poseidonHash2,
       }
     );
-    const accountIndex = accountTree.indexOf(
-      account.commitment,
-      (a: any, b: any) => a.eq(b)
+    const accountIndex = accountTree.indexOf(account.commitment, (a, b) =>
+      a.eq(b)
     );
     if (accountIndex === -1) {
       throw new Error(
@@ -223,14 +224,6 @@ export class Controller {
       outputCommitment: newAccount.commitment,
     };
 
-    const proofData = await websnarkUtils.genWitnessAndProve(
-      this.groth16,
-      input,
-      this.provingKeys.withdrawCircuit,
-      this.provingKeys.withdrawProvingKey
-    );
-    const { proof } = websnarkUtils.toSolidityInput(proofData);
-
     const args = {
       amount: toFixedHex(input.amount),
       extDataHash: toFixedHex(input.extDataHash),
@@ -249,6 +242,17 @@ export class Controller {
       },
     };
 
+    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
+      utils.stringifyBigInts(input),
+      this.provingKeys.withdrawWasm,
+      this.provingKeys.withdrawZkey
+    );
+    const [proof] = (
+      await this.snarkjs.plonk.exportSolidityCallData(
+        utils.unstringifyBigInts(proofData),
+        []
+      )
+    ).split(",");
     return {
       proof,
       args,
@@ -273,13 +277,17 @@ export class Controller {
       pathElements: accountTreeUpdate.pathElements,
     };
 
-    const proofData = await websnarkUtils.genWitnessAndProve(
-      this.groth16,
-      input,
-      this.provingKeys.treeUpdateCircuit,
-      this.provingKeys.treeUpdateProvingKey
+    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
+      utils.stringifyBigInts(input),
+      "https://github.com/poofcash/poof-v2/releases/download/v0.0.1/TreeUpdate.wasm",
+      "https://github.com/poofcash/poof-v2/releases/download/v0.0.1/TreeUpdate_circuit_final.zkey"
     );
-    const { proof } = websnarkUtils.toSolidityInput(proofData);
+    const [proof] = (
+      await this.snarkjs.plonk.exportSolidityCallData(
+        utils.unstringifyBigInts(proofData),
+        []
+      )
+    ).split(",");
 
     const args = {
       oldRoot: toFixedHex(input.oldRoot),

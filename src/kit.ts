@@ -24,24 +24,24 @@ export type PoofDeposit = {
 };
 
 type ProvingKeys = {
-  depositCircuit?: any;
-  depositProvingKey?: any;
-  withdrawCircuit?: any;
-  withdrawProvingKey?: any;
-  treeUpdateCircuit?: any;
-  treeUpdateProvingKey?: any;
+  depositWasm?: Uint8Array;
+  depositZkey?: Uint8Array;
+  withdrawWasm?: Uint8Array;
+  withdrawZkey?: Uint8Array;
+  treeUpdateWasm?: Uint8Array;
+  treeUpdateZkey?: Uint8Array;
 };
 
 export class PoofKit {
   private poof: Contract;
   private controller: Controller;
   private provingKeys: ProvingKeys = {};
-  private groth16: any;
+  private snarkjs: any;
 
   constructor(private web3: Web3) {}
 
-  initialize(groth16: any) {
-    this.groth16 = groth16;
+  initialize(snarkjs: any) {
+    this.snarkjs = snarkjs;
   }
 
   async poofEvents(eventName: string, fromBlock: number): Promise<EventData[]> {
@@ -51,44 +51,39 @@ export class PoofKit {
     });
   }
 
-  async getProofDeps(circuitUrl: string, provingKeyUrl: string) {
-    return await Promise.all([
-      fetch(circuitUrl)
-        .then((x) => x.arrayBuffer())
-        .then((x) =>
-          JSON.parse(
-            new TextDecoder().decode(decompressSync(new Uint8Array(x)))
-          )
-        ),
-      fetch(provingKeyUrl)
-        .then((x) => x.arrayBuffer())
-        .then((x) => decompressSync(new Uint8Array(x)).buffer),
-    ]);
+  async getProofDeps(deps: string[]) {
+    return await Promise.all(
+      deps.map((dep) =>
+        fetch(dep)
+          .then((x) => x.arrayBuffer())
+          .then((x) => decompressSync(new Uint8Array(x)))
+      )
+    );
   }
 
   async initializeDeposit() {
-    const [depositCircuit, depositProvingKey] = await this.getProofDeps(
-      "https://cloudflare-ipfs.com/ipfs/QmfQLfWGRLBjr5dJD21X34CHjoVDNLXwHzzL1ohgDSFvKA",
-      "https://cloudflare-ipfs.com/ipfs/QmYh6643t2xeMv7Hz3jKoZyfVxakQQTah9dYUWWo8A8gpw"
-    );
-    this.provingKeys.depositCircuit = depositCircuit;
-    this.provingKeys.depositProvingKey = depositProvingKey;
+    const [depositWasm, depositZkey] = await this.getProofDeps([
+      "https://poof.nyc3.digitaloceanspaces.com/Deposit.wasm.gz",
+      "https://poof.nyc3.digitaloceanspaces.com/Deposit_circuit_final.zkey.gz",
+    ]);
+    this.provingKeys.depositWasm = depositWasm;
+    this.provingKeys.depositZkey = depositZkey;
     this.controller = new Controller({
-      groth16: this.groth16,
       provingKeys: this.provingKeys,
+      snarkjs: this.snarkjs,
     });
   }
 
   async initializeWithdraw() {
-    const [withdrawCircuit, withdrawProvingKey] = await this.getProofDeps(
-      "https://cloudflare-ipfs.com/ipfs/Qmbu1Z2j3hrJJ9HgRGXfGXGncWAu5DJ9qXVFRJbZqKwz91",
-      "https://cloudflare-ipfs.com/ipfs/QmTmjhzhRAqHzcMJdkRU6Bviyhjt5NZHsSmEhby9MWkCtn"
-    );
-    this.provingKeys.withdrawCircuit = withdrawCircuit;
-    this.provingKeys.withdrawProvingKey = withdrawProvingKey;
+    const [withdrawWasm, withdrawZkey] = await this.getProofDeps([
+      "https://poof.nyc3.digitaloceanspaces.com/Withdraw.wasm.gz",
+      "https://poof.nyc3.digitaloceanspaces.com/Withdraw_circuit_final.zkey.gz",
+    ]);
+    this.provingKeys.withdrawWasm = withdrawWasm;
+    this.provingKeys.withdrawZkey = withdrawZkey;
     this.controller = new Controller({
-      groth16: this.groth16,
       provingKeys: this.provingKeys,
+      snarkjs: this.snarkjs,
     });
   }
 
@@ -159,10 +154,7 @@ export class PoofKit {
   ) {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
-      if (
-        !this.provingKeys.depositCircuit ||
-        !this.provingKeys.depositProvingKey
-      ) {
+      if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
         await this.initializeDeposit();
       }
       const poof = new this.web3.eth.Contract(
@@ -197,10 +189,7 @@ export class PoofKit {
     if (poolMatch) {
       const { poolAddress, decimals } = poolMatch;
 
-      if (
-        !this.provingKeys.withdrawCircuit ||
-        !this.provingKeys.withdrawProvingKey
-      ) {
+      if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
         await this.initializeWithdraw();
       }
       const poof = new this.web3.eth.Contract(
@@ -241,7 +230,7 @@ export class PoofKit {
 
       const { proof, args } = await this.controller.withdraw(poof, {
         account: latestAccount,
-        amount: amount.sub(fee),
+        amount: amount,
         recipient,
         publicKey,
         fee,

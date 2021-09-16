@@ -4,9 +4,9 @@ require("dotenv").config();
 const Web3 = require("web3");
 const ContractKit = require("@celo/contractkit");
 const { PoofKit } = require("./dist");
-const buildGroth16 = require("websnark/src/groth16");
 const { toWei, toBN } = require("web3-utils");
 const yargs = require("yargs");
+const snarkjs = require("snarkjs");
 
 const { PRIVATE_KEY, RPC_URL, POOF_PRIVATE_KEY } = process.env;
 const web3 = new Web3(RPC_URL);
@@ -17,9 +17,8 @@ let poofKit, netId, explorer, senderAccount;
 
 const init = async () => {
   netId = await kit.web3.eth.getChainId();
-  const groth16 = await buildGroth16();
   poofKit = new PoofKit(kit.web3);
-  poofKit.initialize(groth16);
+  poofKit.initialize(snarkjs);
   explorer =
     netId === 44787
       ? "https://alfajores-blockscout.celo-testnet.org"
