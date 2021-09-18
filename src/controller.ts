@@ -14,11 +14,19 @@ import BN from "bn.js";
 import { utils } from "ffjavascript";
 import { Poof } from "./generated/Poof";
 
+export enum Operation {
+  DEPOSIT = 0,
+  WITHDRAW = 1,
+  MINT = 2,
+  BURN = 3,
+}
+
 type DepositParams = {
   account: Account;
   publicKey: string;
   amount: BN;
   accountCommitments?: BN[];
+  operation?: Operation;
 };
 
 type WithdrawParams = {
@@ -29,6 +37,7 @@ type WithdrawParams = {
   fee: BN;
   relayer: 0 | Address;
   accountCommitments?: BN[];
+  operation?: Operation;
 };
 
 const fetchAccountCommitments = async (poof: Poof) => {
@@ -67,7 +76,13 @@ export class Controller {
 
   async deposit(
     poof: Poof,
-    { account, amount, publicKey, accountCommitments }: DepositParams
+    {
+      account,
+      amount,
+      publicKey,
+      accountCommitments,
+      operation = Operation.DEPOSIT,
+    }: DepositParams
   ) {
     const newAmount = account.amount.add(amount);
     const newAccount = new Account({ amount: newAmount.toString() });
@@ -99,7 +114,7 @@ export class Controller {
     const encryptedAccount = packEncryptedMessage(
       newAccount.encrypt(publicKey)
     );
-    const extDataHash = getExtDepositArgsHash({ encryptedAccount });
+    const extDataHash = getExtDepositArgsHash({ encryptedAccount, operation });
 
     const input = {
       amount,
@@ -139,6 +154,7 @@ export class Controller {
       extDataHash,
       extData: {
         encryptedAccount,
+        operation,
       },
       account: {
         inputRoot: toFixedHex(input.inputRoot),
@@ -165,6 +181,7 @@ export class Controller {
       publicKey,
       fee = toBN(0),
       relayer = 0,
+      operation = Operation.WITHDRAW,
     }: WithdrawParams
   ) {
     const amount = withdrawAmount.add(fee);
@@ -201,6 +218,7 @@ export class Controller {
       recipient,
       relayer,
       encryptedAccount,
+      operation,
     });
 
     const input = {
@@ -232,6 +250,7 @@ export class Controller {
         recipient: toFixedHex(recipient, 20),
         relayer: toFixedHex(relayer, 20),
         encryptedAccount,
+        operation,
       },
       account: {
         inputRoot: toFixedHex(input.inputRoot),

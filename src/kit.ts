@@ -1,6 +1,7 @@
-import { toBN, AbiItem, toWei, fromWei } from "web3-utils";
+import { toBN, AbiItem, fromWei } from "web3-utils";
 import { Contract, EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
+import IWERC20Artifact from "./artifacts/IWERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
 import { calculateFee, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
@@ -13,7 +14,6 @@ import { decompressSync } from "fflate";
 import { ERC20 } from "./generated/ERC20";
 import BN from "bn.js";
 import { Poof } from "./generated/Poof";
-import Web3 from "web3";
 
 const TRIES = 20;
 
@@ -38,7 +38,7 @@ export class PoofKit {
   private provingKeys: ProvingKeys = {};
   private snarkjs: any;
 
-  constructor(private web3: Web3) {}
+  constructor(private web3: any) {}
 
   initialize(snarkjs: any) {
     this.snarkjs = snarkjs;
@@ -157,6 +157,13 @@ export class PoofKit {
       if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
         await this.initializeDeposit();
       }
+      if (poolMatch.wrappedAddress) {
+        const wrapped = new this.web3.eth.Contract(
+          IWERC20Artifact.abi as AbiItem[],
+          poolMatch.wrappedAddress
+        );
+        amount = toBN(await wrapped.methods.underlyingToDebt(amount).call());
+      }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolMatch.poolAddress
@@ -192,6 +199,13 @@ export class PoofKit {
       if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
         await this.initializeWithdraw();
       }
+      if (poolMatch.wrappedAddress) {
+        const wrapped = new this.web3.eth.Contract(
+          IWERC20Artifact.abi as AbiItem[],
+          poolMatch.wrappedAddress
+        );
+        amount = toBN(await wrapped.methods.underlyingToDebt(amount).call());
+      }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolAddress
@@ -213,6 +227,7 @@ export class PoofKit {
           relayerStatus.data;
         const gasPrice = gasPrices["min"] || 0.5;
         const currencyCeloPrice = celoPrices[currency.toLowerCase()];
+        // Add 1% buffer for the fee
         fee = calculateFee(
           gasPrice,
           fromWei(amount), // HARDCODE: 18 decimal assumption
@@ -220,8 +235,10 @@ export class PoofKit {
           currencyCeloPrice,
           poofServiceFee,
           decimals,
-          5e5
-        );
+          1e6
+        )
+          .mul(toBN(101))
+          .div(toBN(100));
         if (fee.gt(amount)) {
           throw new Error("Fee is higher than the redeem amount");
         }
@@ -285,7 +302,16 @@ export class PoofKit {
       if (!latestAccount) {
         return "0";
       }
-      return latestAccount.amount.toString();
+      if (poolMatch.wrappedAddress) {
+        const wrapped = new this.web3.eth.Contract(
+          IWERC20Artifact.abi as AbiItem[],
+          poolMatch.wrappedAddress
+        );
+        return await wrapped.methods
+          .debtToUnderlying(latestAccount.amount)
+          .call();
+      }
+      return latestAccount.amount;
     }
     return null;
   }
