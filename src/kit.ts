@@ -367,9 +367,12 @@ export class PoofKit {
         PoofArtifact.abi as AbiItem[],
         poolMatch.poolAddress
       ) as unknown as Poof;
+      let debtToken;
+      if (poolMatch.wrappedAddress) {
+        debtToken = await poof.methods.debtToken().call();
+      }
       const token = await poof.methods.token().call();
-      const owner = await poof.methods.owner().call();
-      return { token, owner };
+      return { token, debtToken };
     }
     return null;
   }
