@@ -6,7 +6,7 @@ import PoofArtifact from "./artifacts/Poof.json";
 import { calculateFee, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
 import { Address } from "@celo/base";
-import { Controller } from "./controller";
+import { Controller, Operation } from "./controller";
 import { Account } from "./account";
 import { getEncryptionPublicKey } from "eth-sig-util";
 import { deployments } from "./addresses/deployments";
@@ -150,6 +150,7 @@ export class PoofKit {
     privateKey: string,
     currency: string,
     amount: BN,
+    operation: Operation.DEPOSIT | Operation.BURN,
     accountEvents?: EventData[]
   ) {
     const poolMatch = await this.poolMatch(currency);
@@ -178,8 +179,12 @@ export class PoofKit {
         account: account || new Account(),
         publicKey,
         amount,
+        operation,
       });
-      return poof.methods["deposit"](proof, args);
+      return poof.methods[operation === Operation.DEPOSIT ? "deposit" : "burn"](
+        proof,
+        args
+      );
     }
     return null;
   }
@@ -189,6 +194,7 @@ export class PoofKit {
     currency: string,
     amount: BN,
     recipient: Address,
+    operation: Operation.WITHDRAW | Operation.MINT,
     relayerURL?: string,
     accountEvents?: EventData[]
   ) {
@@ -252,11 +258,14 @@ export class PoofKit {
         publicKey,
         fee,
         relayer,
+        operation,
       });
       if (relayerURL) {
         console.info("Sending withdraw transaction through relay");
         try {
-          const relay = await axios.post(relayerURL + "/v2/withdraw", {
+          const endpoint =
+            operation === Operation.WITHDRAW ? "/v2/withdraw" : "/v2/mint";
+          const relay = await axios.post(relayerURL + endpoint, {
             contract: poolAddress,
             proof,
             args,
@@ -285,7 +294,9 @@ export class PoofKit {
           }
         }
       } else {
-        return poof.methods["withdraw"](proof, args);
+        return poof.methods[
+          operation === Operation.WITHDRAW ? "withdraw" : "mint"
+        ](proof, args);
       }
     }
     return null;

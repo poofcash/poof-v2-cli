@@ -4,7 +4,7 @@ require("dotenv").config();
 const Web3 = require("web3");
 const ContractKit = require("@celo/contractkit");
 const { PoofKit } = require("./dist");
-const { toWei, toBN } = require("web3-utils");
+const { toWei, toBN, fromWei } = require("web3-utils");
 const yargs = require("yargs");
 const snarkjs = require("snarkjs");
 
@@ -83,9 +83,36 @@ yargs
       const depositTxo = await poofKit.deposit(
         POOF_PRIVATE_KEY,
         currency,
-        toBN(amount)
+        toBN(toWei(amount)),
+        0 // Operation.DEPOSIT
       );
       const tx = await depositTxo.send({ from: senderAccount });
+      console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+    }
+  )
+  .command(
+    "burn <currency> <amount>",
+    "Deposit into Poof",
+    (yargs) => {
+      yargs.positional("currency", {
+        type: "string",
+        describe: "The ERC20 symbol to deposit",
+      });
+      yargs.positional("amount", {
+        type: "string",
+        describe: "The amount to deposit",
+      });
+    },
+    async (argv) => {
+      await init();
+      const { currency, amount } = argv;
+      const burnTxo = await poofKit.deposit(
+        POOF_PRIVATE_KEY,
+        currency,
+        toBN(toWei(amount)),
+        3 // Operation.BURN
+      );
+      const tx = await burnTxo.send({ from: senderAccount });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
   )
@@ -116,8 +143,51 @@ yargs
       const res = await poofKit.withdraw(
         POOF_PRIVATE_KEY,
         currency,
-        toBN(amount),
+        toBN(toWei(amount)),
         recipient || senderAccount,
+        1, // Operation.WITHDRAW
+        relayerUrl
+      );
+      if (relayerUrl) {
+        const hash = res;
+        console.log(`Transaction: ${getExplorerTx(hash)}`);
+      } else {
+        const txo = res;
+        const tx = await txo.send({ from: senderAccount });
+        console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+      }
+    }
+  )
+  .command(
+    "mint <currency> <amount> [recipient] [relayerUrl]",
+    "Mint tokens collateralized on hidden balance",
+    (yargs) => {
+      yargs.positional("currency", {
+        type: "string",
+        describe: "The ERC20 symbol to withdraw",
+      });
+      yargs.positional("amount", {
+        type: "string",
+        describe: "The amount to withdraw",
+      });
+      yargs.positional("recipient", {
+        type: "string",
+        describe: "The recipient address to send the withdrawal",
+      });
+      yargs.positional("relayerUrl", {
+        type: "string",
+        describe: "Optional relayer URL for withdrawal",
+      });
+    },
+    async (argv) => {
+      await init();
+      const { currency, amount, recipient, relayerUrl } = argv;
+      const res = await poofKit.withdraw(
+        POOF_PRIVATE_KEY,
+        currency,
+        toBN(toWei(amount)),
+        recipient || senderAccount,
+        2, // Operation.MINT
         relayerUrl
       );
       if (relayerUrl) {
@@ -152,7 +222,7 @@ yargs
       await init();
       const { currency } = argv;
       const balance = await poofKit.hiddenBalance(POOF_PRIVATE_KEY, currency);
-      console.log(`${balance} ${currency}`);
+      console.log(`${fromWei(balance)} ${currency}`);
     }
   )
   .command(
