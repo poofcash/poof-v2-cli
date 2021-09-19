@@ -1,16 +1,15 @@
 {
   "name": "@poofcash/poof-v2-kit",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "clean": "rm -rf ./dist",
-    "build": "yarn tsc -b",
+    "clean": "rm -rf ./dist && rm -rf src/generated",
+    "build": "yarn typechain && yarn tsc -b",
     "prepublishOnly": "yarn clean && yarn build",
     "prepare": "husky install",
-    "typechain": "typechain --target=web3-v1 ./src/artifacts/*.json --out-dir src/generated",
-    "postinstall": "yarn typechain"
+    "typechain": "typechain --target=web3-v1 ./src/artifacts/*.json --out-dir src/generated"
   },
   "author": "",
   "license": "ISC",
