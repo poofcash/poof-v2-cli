@@ -6,6 +6,7 @@ import {
   getExtDepositArgsHash,
   getExtWithdrawArgsHash,
   packEncryptedMessage,
+  getDepositProofHash,
 } from "./utils";
 import { Account } from "./account";
 import MerkleTree from "fixed-merkle-tree";
@@ -14,30 +15,27 @@ import BN from "bn.js";
 import { utils } from "ffjavascript";
 import { Poof } from "./generated/Poof";
 
-export enum Operation {
-  DEPOSIT = 0,
-  WITHDRAW = 1,
-  MINT = 2,
-  BURN = 3,
-}
-
 type DepositParams = {
   account: Account;
   publicKey: string;
   amount: BN;
+  debt: BN;
+  unitPerUnderlying: BN;
   accountCommitments?: BN[];
-  operation?: Operation;
 };
 
 type WithdrawParams = {
   account: Account;
   amount: BN;
+  debt: BN;
+  unitPerUnderlying: BN;
+  depositProof?: any;
+  depositArgs?: any;
   recipient: Address;
   publicKey: string;
   fee: BN;
   relayer: 0 | Address;
   accountCommitments?: BN[];
-  operation?: Operation;
 };
 
 const fetchAccountCommitments = async (poof: Poof) => {
@@ -79,13 +77,18 @@ export class Controller {
     {
       account,
       amount,
+      debt,
+      unitPerUnderlying,
       publicKey,
       accountCommitments,
-      operation = Operation.DEPOSIT,
     }: DepositParams
   ) {
     const newAmount = account.amount.add(amount);
-    const newAccount = new Account({ amount: newAmount.toString() });
+    const newDebt = account.debt.sub(debt);
+    const newAccount = new Account({
+      amount: newAmount.toString(),
+      debt: newDebt.toString(),
+    });
 
     accountCommitments =
       accountCommitments || (await fetchAccountCommitments(poof));
@@ -114,13 +117,16 @@ export class Controller {
     const encryptedAccount = packEncryptedMessage(
       newAccount.encrypt(publicKey)
     );
-    const extDataHash = getExtDepositArgsHash({ encryptedAccount, operation });
+    const extDataHash = getExtDepositArgsHash({ encryptedAccount });
 
     const input = {
       amount,
+      debt,
+      unitPerUnderlying,
       extDataHash,
 
       inputAmount: account.amount,
+      inputDebt: account.debt,
       inputSecret: account.secret,
       inputNullifier: account.nullifier,
       inputRoot: accountTreeUpdate.oldRoot,
@@ -129,6 +135,7 @@ export class Controller {
       inputNullifierHash: account.nullifierHash,
 
       outputAmount: newAccount.amount,
+      outputDebt: newAccount.debt,
       outputSecret: newAccount.secret,
       outputNullifier: newAccount.nullifier,
       outputRoot: accountTreeUpdate.newRoot,
@@ -151,10 +158,11 @@ export class Controller {
 
     const args = {
       amount: toFixedHex(amount),
+      debt: toFixedHex(debt),
+      unitPerUnderlying: toFixedHex(unitPerUnderlying),
       extDataHash,
       extData: {
         encryptedAccount,
-        operation,
       },
       account: {
         inputRoot: toFixedHex(input.inputRoot),
@@ -177,16 +185,25 @@ export class Controller {
     {
       account,
       amount: withdrawAmount,
+      debt,
+      unitPerUnderlying,
+      depositProof,
+      depositArgs,
       recipient,
       publicKey,
       fee = toBN(0),
       relayer = 0,
-      operation = Operation.WITHDRAW,
     }: WithdrawParams
   ) {
-    const amount = withdrawAmount.add(fee);
+    const amount = toBN(depositArgs ? depositArgs.amount : withdrawAmount).add(
+      fee
+    );
     const newAmount = account.amount.sub(amount);
-    const newAccount = new Account({ amount: newAmount.toString() });
+    const newDebt = account.debt.add(debt);
+    const newAccount = new Account({
+      amount: newAmount.toString(),
+      debt: newDebt.toString(),
+    });
 
     const accountCommitments = await fetchAccountCommitments(poof);
     const accountTree = new MerkleTree(
@@ -213,19 +230,23 @@ export class Controller {
     const encryptedAccount = packEncryptedMessage(
       newAccount.encrypt(publicKey)
     );
+    const depositProofHash = getDepositProofHash(depositProof);
     const extDataHash = getExtWithdrawArgsHash({
       fee,
       recipient,
       relayer,
+      depositProofHash,
       encryptedAccount,
-      operation,
     });
 
     const input = {
-      amount: amount,
+      amount,
+      debt,
+      unitPerUnderlying,
       extDataHash,
 
       inputAmount: account.amount,
+      inputDebt: account.debt,
       inputSecret: account.secret,
       inputNullifier: account.nullifier,
       inputNullifierHash: account.nullifierHash,
@@ -234,6 +255,7 @@ export class Controller {
       inputPathElements: accountPath.pathElements,
 
       outputAmount: newAccount.amount,
+      outputDebt: newAccount.debt,
       outputSecret: newAccount.secret,
       outputNullifier: newAccount.nullifier,
       outputRoot: accountTreeUpdate.newRoot,
@@ -244,13 +266,15 @@ export class Controller {
 
     const args = {
       amount: toFixedHex(input.amount),
+      debt: toFixedHex(input.debt),
+      unitPerUnderlying: toFixedHex(input.unitPerUnderlying),
       extDataHash: toFixedHex(input.extDataHash),
       extData: {
         fee: toFixedHex(fee),
         recipient: toFixedHex(recipient, 20),
         relayer: toFixedHex(relayer, 20),
+        depositProofHash,
         encryptedAccount,
-        operation,
       },
       account: {
         inputRoot: toFixedHex(input.inputRoot),

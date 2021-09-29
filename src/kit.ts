@@ -6,7 +6,7 @@ import PoofArtifact from "./artifacts/Poof.json";
 import { calculateFee, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
 import { Address } from "@celo/base";
-import { Controller, Operation } from "./controller";
+import { Controller } from "./controller";
 import { Account } from "./account";
 import { getEncryptionPublicKey } from "eth-sig-util";
 import { deployments } from "./addresses/deployments";
@@ -150,7 +150,7 @@ export class PoofKit {
     privateKey: string,
     currency: string,
     amount: BN,
-    operation: Operation.DEPOSIT | Operation.BURN,
+    debt: BN,
     accountEvents?: EventData[]
   ) {
     const poolMatch = await this.poolMatch(currency);
@@ -158,33 +158,28 @@ export class PoofKit {
       if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
         await this.initializeDeposit();
       }
-      if (poolMatch.wrappedAddress) {
-        const wrapped = new this.web3.eth.Contract(
-          IWERC20Artifact.abi as AbiItem[],
-          poolMatch.wrappedAddress
-        );
-        amount = toBN(await wrapped.methods.underlyingToDebt(amount).call());
-      }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolMatch.poolAddress
       ) as unknown as Poof;
+      const unitPerUnderlying = toBN(
+        await poof.methods.unitPerUnderlying().call()
+      );
+      const amountInUnits = amount.mul(unitPerUnderlying);
       const publicKey = getEncryptionPublicKey(privateKey);
       const account = await this.getLatestAccount(
         privateKey,
-        poof,
+        currency,
         accountEvents
       );
       const { proof, args } = await this.controller.deposit(poof, {
         account: account || new Account(),
         publicKey,
-        amount,
-        operation,
+        amount: amountInUnits,
+        debt,
+        unitPerUnderlying,
       });
-      return poof.methods[operation === Operation.DEPOSIT ? "deposit" : "burn"](
-        proof,
-        args
-      );
+      return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proof, args);
     }
     return null;
   }
@@ -193,8 +188,8 @@ export class PoofKit {
     privateKey: string,
     currency: string,
     amount: BN,
+    debt: BN,
     recipient: Address,
-    operation: Operation.WITHDRAW | Operation.MINT,
     relayerURL?: string,
     accountEvents?: EventData[]
   ) {
@@ -205,20 +200,17 @@ export class PoofKit {
       if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
         await this.initializeWithdraw();
       }
-      if (poolMatch.wrappedAddress) {
-        const wrapped = new this.web3.eth.Contract(
-          IWERC20Artifact.abi as AbiItem[],
-          poolMatch.wrappedAddress
-        );
-        amount = toBN(await wrapped.methods.underlyingToDebt(amount).call());
-      }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolAddress
       ) as unknown as Poof;
+      const unitPerUnderlying = toBN(
+        await poof.methods.unitPerUnderlying().call()
+      );
+      const amountInUnits = amount.mul(unitPerUnderlying);
       const latestAccount = await this.getLatestAccount(
         privateKey,
-        poof,
+        currency,
         accountEvents
       );
       if (!latestAccount) {
@@ -236,7 +228,7 @@ export class PoofKit {
         // Add 1% buffer for the fee
         fee = calculateFee(
           gasPrice,
-          fromWei(amount), // HARDCODE: 18 decimal assumption
+          fromWei(amountInUnits), // HARDCODE: 18 decimal assumption
           0,
           currencyCeloPrice,
           poofServiceFee,
@@ -245,7 +237,7 @@ export class PoofKit {
         )
           .mul(toBN(101))
           .div(toBN(100));
-        if (fee.gt(amount)) {
+        if (fee.gt(amountInUnits)) {
           throw new Error("Fee is higher than the redeem amount");
         }
         relayer = rewardAccount;
@@ -253,18 +245,19 @@ export class PoofKit {
 
       const { proof, args } = await this.controller.withdraw(poof, {
         account: latestAccount,
-        amount: amount,
+        amount: amountInUnits,
+        debt,
+        unitPerUnderlying,
         recipient,
         publicKey,
         fee,
         relayer,
-        operation,
       });
+      const isWithdraw = debt.eq(toBN(0));
       if (relayerURL) {
         console.info("Sending withdraw transaction through relay");
         try {
-          const endpoint =
-            operation === Operation.WITHDRAW ? "/v2/withdraw" : "/v2/mint";
+          const endpoint = isWithdraw ? "/v2/withdraw" : "/v2/mint";
           const relay = await axios.post(relayerURL + endpoint, {
             contract: poolAddress,
             proof,
@@ -294,9 +287,7 @@ export class PoofKit {
           }
         }
       } else {
-        return poof.methods[
-          operation === Operation.WITHDRAW ? "withdraw" : "mint"
-        ](proof, args);
+        return poof.methods[isWithdraw ? "withdraw" : "mint"](proof, args);
       }
     }
     return null;
@@ -305,11 +296,7 @@ export class PoofKit {
   async hiddenBalance(privateKey: string, currency: string) {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
-      const poof = new this.web3.eth.Contract(
-        PoofArtifact.abi as AbiItem[],
-        poolMatch.poolAddress
-      ) as unknown as Poof;
-      const latestAccount = await this.getLatestAccount(privateKey, poof);
+      const latestAccount = await this.getLatestAccount(privateKey, currency);
       if (!latestAccount) {
         return "0";
       }
@@ -327,37 +314,57 @@ export class PoofKit {
     return null;
   }
 
+  async unitPerUnderlying(currency: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi as AbiItem[],
+        poolMatch.poolAddress
+      ) as unknown as Poof;
+      return toBN(await poof.methods.unitPerUnderlying().call());
+    }
+    return null;
+  }
+
   async getLatestAccount(
     privateKey: string,
-    poof: Poof,
+    currency: string,
     accountEvents?: EventData[]
   ) {
-    accountEvents =
-      accountEvents ||
-      (await poof.getPastEvents("NewAccount", {
-        fromBlock: 0,
-        toBlock: "latest",
-      }));
-    // Sort events descending by time and stop at the first account that decrypts
-    const event = accountEvents
-      .sort((a, b) => b.blockNumber - a.blockNumber)
-      .find((e) => {
-        try {
-          Account.decrypt(
-            privateKey,
-            unpackEncryptedMessage(e.returnValues.encryptedAccount)
-          );
-          return true;
-        } catch (e) {}
-        return false;
-      });
-    if (!event) {
-      return undefined;
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi as AbiItem[],
+        poolMatch.poolAddress
+      ) as unknown as Poof;
+      accountEvents =
+        accountEvents ||
+        (await poof.getPastEvents("NewAccount", {
+          fromBlock: 0,
+          toBlock: "latest",
+        }));
+      // Sort events descending by time and stop at the first account that decrypts
+      const event = accountEvents
+        .sort((a, b) => b.blockNumber - a.blockNumber)
+        .find((e) => {
+          try {
+            Account.decrypt(
+              privateKey,
+              unpackEncryptedMessage(e.returnValues.encryptedAccount)
+            );
+            return true;
+          } catch (e) {}
+          return false;
+        });
+      if (!event) {
+        return undefined;
+      }
+      return Account.decrypt(
+        privateKey,
+        unpackEncryptedMessage(event.returnValues.encryptedAccount)
+      );
     }
-    return Account.decrypt(
-      privateKey,
-      unpackEncryptedMessage(event.returnValues.encryptedAccount)
-    );
+    return null;
   }
 
   async verify(currency: string) {

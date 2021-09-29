@@ -7,6 +7,7 @@ const { PoofKit } = require("./dist");
 const { toWei, toBN, fromWei } = require("web3-utils");
 const yargs = require("yargs");
 const snarkjs = require("snarkjs");
+const ERC20Artifact = require("./dist/artifacts/ERC20.json");
 
 const { PRIVATE_KEY, RPC_URL, POOF_PRIVATE_KEY } = process.env;
 const web3 = new Web3(RPC_URL);
@@ -84,7 +85,7 @@ yargs
         POOF_PRIVATE_KEY,
         currency,
         toBN(toWei(amount)),
-        0 // Operation.DEPOSIT
+        toBN(0)
       );
       const tx = await depositTxo.send({ from: senderAccount });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
@@ -109,8 +110,8 @@ yargs
       const burnTxo = await poofKit.deposit(
         POOF_PRIVATE_KEY,
         currency,
-        toBN(toWei(amount)),
-        3 // Operation.BURN
+        toBN(0),
+        toBN(toWei(amount))
       );
       const tx = await burnTxo.send({ from: senderAccount });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
@@ -144,8 +145,8 @@ yargs
         POOF_PRIVATE_KEY,
         currency,
         toBN(toWei(amount)),
+        toBN(0),
         recipient || senderAccount,
-        1, // Operation.WITHDRAW
         relayerUrl
       );
       if (relayerUrl) {
@@ -185,9 +186,9 @@ yargs
       const res = await poofKit.withdraw(
         POOF_PRIVATE_KEY,
         currency,
+        toBN(0),
         toBN(toWei(amount)),
         recipient || senderAccount,
-        2, // Operation.MINT
         relayerUrl
       );
       if (relayerUrl) {
@@ -210,8 +211,8 @@ yargs
     }
   )
   .command(
-    "balance [currency]",
-    "Get hidden balance",
+    "balances [currency]",
+    "Get latest account balances",
     () => {
       yargs.positional("currency", {
         type: "string",
@@ -221,8 +222,31 @@ yargs
     async (argv) => {
       await init();
       const { currency } = argv;
-      const balance = await poofKit.hiddenBalance(POOF_PRIVATE_KEY, currency);
-      console.log(`${fromWei(balance)} ${currency}`);
+      const account = await poofKit.getLatestAccount(
+        POOF_PRIVATE_KEY,
+        currency
+      );
+      const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
+      console.log(
+        `Private balance: ${fromWei(
+          account.amount.div(unitPerUnderlying)
+        )} ${currency}`
+      );
+      console.log(`Private debt: ${fromWei(account.debt)} ${currency}`);
+
+      const poolMatch = await poofKit.poolMatch(currency);
+      const uToken = new web3.eth.Contract(
+        ERC20Artifact.abi,
+        poolMatch.tokenAddress
+      );
+      const balance = await uToken.methods.balanceOf(senderAccount).call();
+      const pToken = new web3.eth.Contract(
+        ERC20Artifact.abi,
+        poolMatch.poolAddress
+      );
+      const debt = await pToken.methods.balanceOf(senderAccount).call();
+      console.log(`Public balance: ${fromWei(balance)} ${currency}`);
+      console.log(`Public debt: ${fromWei(debt)} ${currency}`);
     }
   )
   .command(
