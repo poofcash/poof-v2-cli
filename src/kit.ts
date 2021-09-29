@@ -1,7 +1,6 @@
 import { toBN, AbiItem, fromWei } from "web3-utils";
 import { Contract, EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
-import IWERC20Artifact from "./artifacts/IWERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
 import { calculateFee, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
@@ -289,27 +288,6 @@ export class PoofKit {
       } else {
         return poof.methods[isWithdraw ? "withdraw" : "mint"](proof, args);
       }
-    }
-    return null;
-  }
-
-  async hiddenBalance(privateKey: string, currency: string) {
-    const poolMatch = await this.poolMatch(currency);
-    if (poolMatch) {
-      const latestAccount = await this.getLatestAccount(privateKey, currency);
-      if (!latestAccount) {
-        return "0";
-      }
-      if (poolMatch.wrappedAddress) {
-        const wrapped = new this.web3.eth.Contract(
-          IWERC20Artifact.abi as AbiItem[],
-          poolMatch.wrappedAddress
-        );
-        return await wrapped.methods
-          .debtToUnderlying(latestAccount.amount)
-          .call();
-      }
-      return latestAccount.amount;
     }
     return null;
   }

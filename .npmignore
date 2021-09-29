@@ -1,2 +1,5 @@
 cli.js
 node_modules
+.env
+.git
+.husky
