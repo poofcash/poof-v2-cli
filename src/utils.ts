@@ -10,6 +10,7 @@ import {
 } from "web3-utils";
 import { babyJub, pedersenHash, mimcsponge, poseidon } from "circomlib";
 import Web3 from "web3";
+import BN from "bn.js";
 
 const web3 = new Web3();
 
@@ -181,41 +182,32 @@ export function bitsToNumber(bits) {
   return result;
 }
 
-// @gasPrice Price of gas in gwei
-// @amount Amount to transact in normal amount
-// @refund Amount of buffered gas in wei
+// @amount Amount to transact in currency units
 // @currencyCeloPrice Prices relative to CELO of the currency to transact
 // @poofServiceFee Number between [0,100] representing relayer fee in percent
-// @decimals Number of decimals in the currency to transact
-// @gasLimit Max amount of gas in wei
+// @gasLimit Max amount of gas in gwei
 // @return Fee in the transaction currency (in wei for 18 decimals)
 export const calculateFee = (
-  gasPrice: string | number,
-  amount: string | number,
-  refund: string | number,
-  currencyCeloPrice: string | number,
-  poofServiceFee: string | number,
-  decimals: string | number,
-  gasLimit: string | number
+  amount: BN,
+  currencyCeloPrice: number,
+  poofServiceFee: number,
+  gasLimit: number
 ) => {
-  gasPrice = gasPrice.toString();
-  amount = amount.toString();
-  refund = refund.toString();
-  currencyCeloPrice = currencyCeloPrice.toString();
-  poofServiceFee = poofServiceFee.toString();
-  decimals = decimals.toString();
-  gasLimit = gasLimit.toString();
+  if (currencyCeloPrice <= 0) {
+    throw new Error("Invalid `currencyCeloPrice`");
+  }
+  // NOTE: Decimals should be incorporated in `currencyCeloPrice`. E.g. if TT has 8 decimals, and 1 CELO = 1 TT,
+  // Then `currencyCeloPrice` should be 1e10
+  const PRECISION = 10000;
+  const relayerFee = amount
+    .mul(toBN(poofServiceFee * PRECISION))
+    .div(toBN(PRECISION));
 
-  const toDecimals = (v: string) =>
-    toBN(fromWei(toBN(toWei(v)).mul(toBN(10).pow(toBN(decimals)))));
-
-  const relayerFee = toDecimals(amount.toString())
-    .mul(toDecimals(poofServiceFee.toString()))
-    .div(toDecimals("100"));
-  const gas = toBN(toWei(gasPrice.toString(), "gwei")).mul(toBN(gasLimit));
-  const gasInCurrency = toDecimals(gas.add(toBN(refund)).toString()).div(
-    toBN(toWei(currencyCeloPrice.toString()))
-  );
+  const gasInWei = toBN(toWei(gasLimit.toString(), "gwei"));
+  const gasInCurrency =
+    currencyCeloPrice > 1
+      ? gasInWei.div(toBN(currencyCeloPrice))
+      : gasInWei.div(toBN(Math.ceil(currencyCeloPrice) * PRECISION));
 
   return gasInCurrency.add(relayerFee);
 };
