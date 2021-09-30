@@ -89,7 +89,9 @@ export class PoofKit {
   async poolMatch(currency: string) {
     const chainId = await this.web3.eth.getChainId();
     return deployments[chainId].find(
-      (e) => e.symbol.toLowerCase() === currency.toLowerCase()
+      (e) =>
+        e.symbol.toLowerCase() === currency.toLowerCase() ||
+        e.pSymbol.toLowerCase() === currency.toLowerCase()
     );
   }
 
@@ -119,15 +121,15 @@ export class PoofKit {
     return null;
   }
 
-  async poolBalance(currency: string) {
+  async pBalance(currency: string, owner: string) {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
-      const { tokenAddress, poolAddress } = poolMatch;
+      const { poolAddress } = poolMatch;
       const token = new this.web3.eth.Contract(
         ERC20Artifact.abi as AbiItem[],
-        tokenAddress
+        poolAddress
       );
-      return await token.methods.balanceOf(poolAddress).call();
+      return await token.methods.balanceOf(owner).call();
     }
     return null;
   }
@@ -229,7 +231,7 @@ export class PoofKit {
           feeFrom,
           Number(currencyCeloPrice),
           poofServiceFee,
-          9e6
+          1e6
         );
         if (fee.gt(feeFrom)) {
           throw new Error("Fee is higher than the `feeFrom`");

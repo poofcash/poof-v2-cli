@@ -1,13 +1,6 @@
 import crypto from "crypto";
 import bigInt from "big-integer";
-import {
-  toBN,
-  soliditySha3,
-  isBN,
-  numberToHex,
-  fromWei,
-  toWei,
-} from "web3-utils";
+import { toBN, soliditySha3, isBN, numberToHex, toWei } from "web3-utils";
 import { babyJub, pedersenHash, mimcsponge, poseidon } from "circomlib";
 import Web3 from "web3";
 import BN from "bn.js";
