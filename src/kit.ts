@@ -227,12 +227,15 @@ export class PoofKit {
         const currencyCeloPrice = celoPrices[currency.toLowerCase()];
         // Fee can come from amount or debt
         const feeFrom = amountInUnits.eq(toBN(0)) ? debt : amountInUnits; // HARDCODE: 18 decimal assumption
+        // Fee with 0.1% buffer
         fee = calculateFee(
           feeFrom,
           Number(currencyCeloPrice),
           poofServiceFee,
           1e6
-        );
+        )
+          .mul(toBN(1001))
+          .div(toBN(1000));
         if (fee.gt(feeFrom)) {
           throw new Error("Fee is higher than the `feeFrom`");
         }
