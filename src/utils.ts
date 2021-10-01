@@ -194,7 +194,8 @@ export const calculateFee = (
   const PRECISION = 10000;
   const relayerFee = amount
     .mul(toBN(poofServiceFee * PRECISION))
-    .div(toBN(PRECISION));
+    .div(toBN(PRECISION))
+    .div(toBN(100));
 
   const gasInWei = toBN(toWei(gasLimit.toString(), "gwei"));
   const gasInCurrency =
