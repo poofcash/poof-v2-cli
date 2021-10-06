@@ -226,7 +226,9 @@ export class PoofKit {
           relayerStatus.data;
         const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
         // Fee can come from amount or debt
-        const feeFrom = amountInUnits.eq(toBN(0)) ? debt : amountInUnits; // HARDCODE: 18 decimal assumption
+        const feeFrom = amountInUnits.eq(toBN(0))
+          ? debt.mul(unitPerUnderlying)
+          : amountInUnits;
         // Fee with 0.1% buffer
         fee = calculateFee(
           feeFrom,

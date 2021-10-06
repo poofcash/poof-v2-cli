@@ -10,25 +10,25 @@ type CurrencyEntry = {
 export const deployments: Record<string | number, Array<CurrencyEntry>> = {
   42220: [
     {
-      poolAddress: "0xfB47887aB99B714959818aB8F92269e3CD494D72",
+      poolAddress: "0x7015A9e168a2Dc8Ef2afdABb7dD3b47F8E83d07A",
       tokenAddress: "0x471EcE3750Da237f93B8E339c536989b8978a438",
-      wrappedAddress: "0x9bBC688F87D6D3d8047c8b8020673cB1d357D94b",
+      wrappedAddress: "0xe3305d2c398B6AD1f2228621154a3Daf2a47f478",
       symbol: "CELO",
       pSymbol: "pCELO",
       decimals: 18,
     },
     {
-      poolAddress: "0xD540b88515a38d84681B6D77B12Cd22152df608d",
+      poolAddress: "0xba13bD87671fA4Ff861D1dE16F751784027be09b",
       tokenAddress: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
-      wrappedAddress: "0x9038AF22C951E51C531a90208271F4117CB727e6",
+      wrappedAddress: "0xC21984be83Af1e000ab04f63b61E0866Cb01e686",
       symbol: "cUSD",
       pSymbol: "pUSD",
       decimals: 18,
     },
     {
-      poolAddress: "0xf27fbEfc58f9f73159Db249F5749B41819587c66",
-      tokenAddress: "0xa8d0E6799FF3Fd19c6459bf02689aE09c4d78Ba7",
-      wrappedAddress: "0xA2C5FABf23D40fb1D1E784B826f4F86F82b3874d",
+      poolAddress: "0xb789eB26B60585D91BafD8927189cc17b820D3C2",
+      tokenAddress: "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73",
+      wrappedAddress: "0x99319f8d95110fb26171B98fE24Af088f981c650",
       symbol: "cEUR",
       pSymbol: "pEUR",
       decimals: 18,
