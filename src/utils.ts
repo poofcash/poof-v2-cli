@@ -5,6 +5,14 @@ import { babyJub, pedersenHash, mimcsponge, poseidon } from "circomlib";
 import Web3 from "web3";
 import BN from "bn.js";
 
+declare global {
+  namespace NodeJS {
+    interface Global {
+      fetch: any;
+    }
+  }
+}
+
 const web3 = new Web3();
 
 const inBrowser = typeof window !== "undefined";

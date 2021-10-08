@@ -60,11 +60,7 @@ export class PoofKit {
     );
   }
 
-  async initializeDeposit() {
-    const [depositWasm, depositZkey] = await this.getProofDeps([
-      "https://poof.nyc3.digitaloceanspaces.com/Deposit.wasm.gz",
-      "https://poof.nyc3.digitaloceanspaces.com/Deposit_circuit_final.zkey.gz",
-    ]);
+  initializeDeposit(depositWasm: Uint8Array, depositZkey: Uint8Array) {
     this.provingKeys.depositWasm = depositWasm;
     this.provingKeys.depositZkey = depositZkey;
     this.controller = new Controller({
@@ -73,11 +69,7 @@ export class PoofKit {
     });
   }
 
-  async initializeWithdraw() {
-    const [withdrawWasm, withdrawZkey] = await this.getProofDeps([
-      "https://poof.nyc3.digitaloceanspaces.com/Withdraw.wasm.gz",
-      "https://poof.nyc3.digitaloceanspaces.com/Withdraw_circuit_final.zkey.gz",
-    ]);
+  initializeWithdraw(withdrawWasm: Uint8Array, withdrawZkey: Uint8Array) {
     this.provingKeys.withdrawWasm = withdrawWasm;
     this.provingKeys.withdrawZkey = withdrawZkey;
     this.controller = new Controller({
@@ -157,7 +149,11 @@ export class PoofKit {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
       if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
-        await this.initializeDeposit();
+        const [depositWasm, depositZkey] = await this.getProofDeps([
+          "https://poof.nyc3.digitaloceanspaces.com/Deposit.wasm.gz",
+          "https://poof.nyc3.digitaloceanspaces.com/Deposit_circuit_final.zkey.gz",
+        ]);
+        this.initializeDeposit(depositWasm, depositZkey);
       }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
@@ -199,7 +195,11 @@ export class PoofKit {
       const { poolAddress } = poolMatch;
 
       if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
-        await this.initializeWithdraw();
+        const [withdrawWasm, withdrawZkey] = await this.getProofDeps([
+          "https://poof.nyc3.digitaloceanspaces.com/Withdraw.wasm.gz",
+          "https://poof.nyc3.digitaloceanspaces.com/Withdraw_circuit_final.zkey.gz",
+        ]);
+        this.initializeWithdraw(withdrawWasm, withdrawZkey);
       }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
