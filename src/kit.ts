@@ -1,4 +1,4 @@
-import { toBN, AbiItem, fromWei } from "web3-utils";
+import { toBN, AbiItem } from "web3-utils";
 import { Contract, EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
@@ -50,13 +50,38 @@ export class PoofKit {
     });
   }
 
-  async getProofDeps(deps: string[]) {
+  async getProofDeps(deps: string[], onProgress?: (progress: number) => void) {
+    const responses = await Promise.all(deps.map((dep) => fetch(dep)));
+    const contentLength = responses.reduce(
+      (acc, res) => acc + Number(res.headers.get("Content-Length")),
+      0
+    );
+    let totalReceivedBytes = 0;
+
     return await Promise.all(
-      deps.map((dep) =>
-        fetch(dep)
-          .then((x) => x.arrayBuffer())
-          .then((x) => decompressSync(new Uint8Array(x)))
-      )
+      responses.map(async (res) => {
+        if (res.body.getReader) {
+          const reader = res.body.getReader();
+          const chunks = [];
+          let receivedBytes = 0;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            receivedBytes += value.length;
+            totalReceivedBytes += value.length;
+            if (onProgress) onProgress(totalReceivedBytes / contentLength);
+          }
+          const arr = new Uint8Array(receivedBytes);
+          let position = 0;
+          for (const chunk of chunks) {
+            arr.set(chunk, position);
+            position += chunk.length;
+          }
+          return decompressSync(arr);
+        }
+        return decompressSync(new Uint8Array(await res.arrayBuffer()));
+      })
     );
   }
 
