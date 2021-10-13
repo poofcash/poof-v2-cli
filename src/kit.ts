@@ -13,7 +13,8 @@ import { ERC20 } from "./generated/ERC20";
 import BN from "bn.js";
 import { Poof } from "./generated/Poof";
 
-const TRIES = 20;
+const TRIES = 15;
+const TRY_DELAY = 5000;
 
 export type PoofDeposit = {
   tornado: string;
@@ -266,7 +267,7 @@ export class PoofKit {
               return job.data.txHash;
             } else {
               tries -= 1;
-              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await new Promise((resolve) => setTimeout(resolve, TRY_DELAY));
             }
           }
         } catch (e) {
