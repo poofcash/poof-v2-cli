@@ -2,6 +2,7 @@ import crypto from "crypto";
 import bigInt from "big-integer";
 import { toBN, soliditySha3, isBN, numberToHex, toWei } from "web3-utils";
 import { babyJub, pedersenHash, mimcsponge, poseidon } from "circomlib";
+import { decompressSync } from "fflate";
 import Web3 from "web3";
 import BN from "bn.js";
 
@@ -212,4 +213,42 @@ export const calculateFee = (
       : gasInWei.div(toBN(Math.ceil(currencyCeloPrice) * PRECISION));
 
   return gasInCurrency.add(relayerFee);
+};
+
+export const getProofDeps = async (
+  deps: string[],
+  onProgress?: (progress: number) => void
+) => {
+  const responses = await Promise.all(deps.map((dep) => fetch(dep)));
+  const contentLength = responses.reduce(
+    (acc, res) => acc + Number(res.headers.get("Content-Length")),
+    0
+  );
+  let totalReceivedBytes = 0;
+
+  return await Promise.all(
+    responses.map(async (res) => {
+      if (res.body.getReader) {
+        const reader = res.body.getReader();
+        const chunks = [];
+        let receivedBytes = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedBytes += value.length;
+          totalReceivedBytes += value.length;
+          if (onProgress) onProgress(totalReceivedBytes / contentLength);
+        }
+        const arr = new Uint8Array(receivedBytes);
+        let position = 0;
+        for (const chunk of chunks) {
+          arr.set(chunk, position);
+          position += chunk.length;
+        }
+        return decompressSync(arr);
+      }
+      return decompressSync(new Uint8Array(await res.arrayBuffer()));
+    })
+  );
 };

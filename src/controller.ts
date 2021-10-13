@@ -322,8 +322,8 @@ export class Controller {
 
     const { proof: proofData } = await this.snarkjs.plonk.fullProve(
       utils.stringifyBigInts(input),
-      "https://github.com/poofcash/poof-v2/releases/download/v0.0.1/TreeUpdate.wasm",
-      "https://github.com/poofcash/poof-v2/releases/download/v0.0.1/TreeUpdate_circuit_final.zkey"
+      this.provingKeys.treeUpdateWasm,
+      this.provingKeys.treeUpdateZkey
     );
     const [proof] = (
       await this.snarkjs.plonk.exportSolidityCallData(
