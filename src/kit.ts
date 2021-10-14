@@ -4,7 +4,6 @@ import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
 import { calculateFee, getProofDeps, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
-import { Address } from "@celo/base";
 import { Controller } from "./controller";
 import { Account } from "./account";
 import { getEncryptionPublicKey } from "eth-sig-util";
@@ -176,7 +175,7 @@ export class PoofKit {
     currency: string,
     amount: BN,
     debt: BN,
-    recipient: Address,
+    recipient: string,
     relayerURL?: string,
     accountEvents?: EventData[]
   ) {
@@ -209,7 +208,7 @@ export class PoofKit {
       }
       const publicKey = getEncryptionPublicKey(privateKey);
       let fee = toBN(0);
-      let relayer: Address;
+      let relayer: string;
       if (relayerURL) {
         const relayerStatus = await axios.get(relayerURL + "/status");
         const { celoPrices, rewardAccount, poofServiceFee } =

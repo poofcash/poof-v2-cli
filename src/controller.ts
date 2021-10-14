@@ -10,7 +10,6 @@ import {
 } from "./utils";
 import { Account } from "./account";
 import MerkleTree from "fixed-merkle-tree";
-import { Address } from "@celo/contractkit";
 import BN from "bn.js";
 import { utils } from "ffjavascript";
 import { Poof } from "./generated/Poof";
@@ -31,10 +30,10 @@ type WithdrawParams = {
   unitPerUnderlying: BN;
   depositProof?: any;
   depositArgs?: any;
-  recipient: Address;
+  recipient: string;
   publicKey: string;
   fee: BN;
-  relayer: 0 | Address;
+  relayer: 0 | string;
   accountCommitments?: BN[];
 };
 
