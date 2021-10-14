@@ -14,6 +14,8 @@ import { Poof } from "./generated/Poof";
 
 const TRIES = 15;
 const TRY_DELAY = 5000;
+const MAX_INT =
+  "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 
 export type PoofDeposit = {
   tornado: string;
@@ -80,11 +82,14 @@ export class PoofKit {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
       const { tokenAddress, poolAddress } = poolMatch;
-      const token = new this.web3.eth.Contract(
-        ERC20Artifact.abi as AbiItem[],
-        tokenAddress
-      );
-      return await token.methods.allowance(owner, poolAddress).call();
+      if (tokenAddress) {
+        const token = new this.web3.eth.Contract(
+          ERC20Artifact.abi as AbiItem[],
+          tokenAddress
+        );
+        return await token.methods.allowance(owner, poolAddress).call();
+      }
+      return MAX_INT;
     }
     return null;
   }
@@ -93,11 +98,14 @@ export class PoofKit {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
       const { tokenAddress } = poolMatch;
-      const token = new this.web3.eth.Contract(
-        ERC20Artifact.abi as AbiItem[],
-        tokenAddress
-      );
-      return await token.methods.balanceOf(owner).call();
+      if (tokenAddress) {
+        const token = new this.web3.eth.Contract(
+          ERC20Artifact.abi as AbiItem[],
+          tokenAddress
+        );
+        return await token.methods.balanceOf(owner).call();
+      }
+      return await this.web3.eth.getBalance(owner);
     }
     return null;
   }
