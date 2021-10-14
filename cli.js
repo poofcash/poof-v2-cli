@@ -259,16 +259,7 @@ yargs
       );
 
       const poolMatch = await poofKit.poolMatch(currency);
-      let balance = "0";
-      if (poolMatch.token) {
-        const uToken = new web3.eth.Contract(
-          ERC20Artifact.abi,
-          poolMatch.tokenAddress
-        );
-        balance = await uToken.methods.balanceOf(senderAccount).call();
-      } else {
-        balance = await web3.eth.getBalance(senderAccount);
-      }
+      const balance = await poofKit.balance(currency, senderAccount);
       const pToken = new web3.eth.Contract(
         ERC20Artifact.abi,
         poolMatch.poolAddress
