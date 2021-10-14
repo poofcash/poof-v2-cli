@@ -68,4 +68,12 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       decimals: 18,
     },
   ],
+  250: [
+    {
+      poolAddress: "0xb1718663d3C0F64aE08fB83070569688047e8663",
+      symbol: "FTM",
+      pSymbol: "pFTM",
+      decimals: 18,
+    },
+  ],
 };
