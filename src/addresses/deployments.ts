@@ -1,6 +1,6 @@
 type CurrencyEntry = {
   poolAddress: string;
-  tokenAddress: string;
+  tokenAddress?: string;
   wrappedAddress?: string;
   symbol: string;
   pSymbol: string;
@@ -57,6 +57,14 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       wrappedAddress: "0x2eC0b1a93418fE3d7C1D43E85A8fbf95345bD947",
       symbol: "cEUR",
       pSymbol: "pEUR",
+      decimals: 18,
+    },
+  ],
+  4002: [
+    {
+      poolAddress: "0xE8977C8af7cCc1763d28fC9f7bb2B20237903F1b",
+      symbol: "FTM",
+      pSymbol: "pFTM",
       decimals: 18,
     },
   ],

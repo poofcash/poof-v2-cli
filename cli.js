@@ -2,7 +2,6 @@
 
 require("dotenv").config();
 const Web3 = require("web3");
-const ContractKit = require("@celo/contractkit");
 const { PoofKit } = require("./dist");
 const { toWei, toBN, fromWei } = require("web3-utils");
 const yargs = require("yargs");
@@ -11,20 +10,24 @@ const ERC20Artifact = require("./dist/artifacts/ERC20.json");
 
 const { PRIVATE_KEY, RPC_URL, POOF_PRIVATE_KEY } = process.env;
 const web3 = new Web3(RPC_URL);
-const kit = ContractKit.newKitFromWeb3(web3);
-kit.connection.addAccount(PRIVATE_KEY);
+const { address: senderAccount } = web3.eth.accounts.wallet.add(PRIVATE_KEY);
 
-let poofKit, netId, explorer, senderAccount;
+let poofKit, netId, explorer, gasPrice;
 
 const init = async () => {
-  netId = await kit.web3.eth.getChainId();
-  poofKit = new PoofKit(kit.web3);
+  netId = await web3.eth.getChainId();
+  poofKit = new PoofKit(web3);
   poofKit.initialize(snarkjs);
-  explorer =
-    netId === 44787
-      ? "https://alfajores-blockscout.celo-testnet.org"
-      : "https://explorer.celo.org";
-  senderAccount = (await kit.web3.eth.getAccounts())[0];
+  explorer = {
+    44787: "https://alfajores-blockscout.celo-testnet.org",
+    42220: "https://explorer.celo.org",
+    4002: "https://explorer.testnet.fantom.network",
+  }[netId];
+  gasPrice = {
+    44787: toWei("0.5", "gwei"),
+    42220: toWei("0.5", "gwei"),
+    4002: toWei("100", "gwei"),
+  }[netId];
 };
 const getExplorerTx = (hash) => {
   return `${explorer}/tx/${hash}`;
@@ -81,13 +84,23 @@ yargs
     async (argv) => {
       await init();
       const { currency, amount } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
       const depositTxo = await poofKit.deposit(
         POOF_PRIVATE_KEY,
         currency,
         toBN(toWei(amount)),
         toBN(0)
       );
-      const tx = await depositTxo.send({ from: senderAccount });
+      const gas = await depositTxo.estimateGas({
+        value: poolMatch.token ? 0 : toWei(amount),
+        gasPrice,
+      });
+      const tx = await depositTxo.send({
+        from: senderAccount,
+        value: poolMatch.token ? 0 : toWei(amount),
+        gasPrice,
+        gas,
+      });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
   )
@@ -113,7 +126,10 @@ yargs
         toBN(0),
         toBN(toWei(amount))
       );
-      const tx = await burnTxo.send({ from: senderAccount });
+      const gas = await burnTxo.estimateGas({
+        gasPrice,
+      });
+      const tx = await burnTxo.send({ from: senderAccount, gasPrice, gas });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
   )
@@ -154,7 +170,10 @@ yargs
         console.log(`Transaction: ${getExplorerTx(hash)}`);
       } else {
         const txo = res;
-        const tx = await txo.send({ from: senderAccount });
+        const gas = await txo.estimateGas({
+          gasPrice,
+        });
+        const tx = await txo.send({ from: senderAccount, gasPrice, gas });
         console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
       }
     }
@@ -196,7 +215,10 @@ yargs
         console.log(`Transaction: ${getExplorerTx(hash)}`);
       } else {
         const txo = res;
-        const tx = await txo.send({ from: senderAccount });
+        const gas = await txo.estimateGas({
+          gasPrice,
+        });
+        const tx = await txo.send({ from: senderAccount, gasPrice, gas });
         console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
       }
     }
@@ -228,18 +250,25 @@ yargs
       );
       const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
       console.log(
-        `Private balance: ${fromWei(
-          account.amount.div(unitPerUnderlying)
-        )} ${currency}`
+        `Private balance: ${
+          account ? fromWei(account.amount.div(unitPerUnderlying)) : 0
+        } ${currency}`
       );
-      console.log(`Private debt: ${fromWei(account.debt)} ${currency}`);
+      console.log(
+        `Private debt: ${account ? fromWei(account.debt) : 0} ${currency}`
+      );
 
       const poolMatch = await poofKit.poolMatch(currency);
-      const uToken = new web3.eth.Contract(
-        ERC20Artifact.abi,
-        poolMatch.tokenAddress
-      );
-      const balance = await uToken.methods.balanceOf(senderAccount).call();
+      let balance = "0";
+      if (poolMatch.token) {
+        const uToken = new web3.eth.Contract(
+          ERC20Artifact.abi,
+          poolMatch.tokenAddress
+        );
+        balance = await uToken.methods.balanceOf(senderAccount).call();
+      } else {
+        balance = await web3.eth.getBalance(senderAccount);
+      }
       const pToken = new web3.eth.Contract(
         ERC20Artifact.abi,
         poolMatch.poolAddress
