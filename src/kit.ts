@@ -212,7 +212,7 @@ export class PoofKit {
         accountEvents
       );
       if (!latestAccount) {
-        throw new Error("Poof account has no AP");
+        throw new Error("No previous account found");
       }
       const publicKey = getEncryptionPublicKey(privateKey);
       let fee = toBN(0);

@@ -22,6 +22,7 @@ const init = async () => {
     44787: "https://alfajores-blockscout.celo-testnet.org",
     42220: "https://explorer.celo.org",
     4002: "https://explorer.testnet.fantom.network",
+    250: "https://explorer.fantom.network",
   }[netId];
   gasPrice = {
     44787: toWei("0.5", "gwei"),
