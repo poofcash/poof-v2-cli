@@ -70,7 +70,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
   ],
   250: [
     {
-      poolAddress: "0xb1718663d3C0F64aE08fB83070569688047e8663",
+      poolAddress: "0xfe19735c234ea91bf0d92dd764c1d129a9a700a2",
       symbol: "FTM",
       pSymbol: "pFTM",
       decimals: 18,
