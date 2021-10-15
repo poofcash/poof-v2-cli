@@ -249,25 +249,27 @@ yargs
         POOF_PRIVATE_KEY,
         currency
       );
+      const poolMatch = await poofKit.poolMatch(currency);
       const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
       console.log(
         `Private balance: ${
           account ? fromWei(account.amount.div(unitPerUnderlying)) : 0
-        } ${currency}`
+        } ${poolMatch.symbol}`
       );
       console.log(
-        `Private debt: ${account ? fromWei(account.debt) : 0} ${currency}`
+        `Private debt: ${account ? fromWei(account.debt) : 0} ${
+          poolMatch.pSymbol
+        }`
       );
 
-      const poolMatch = await poofKit.poolMatch(currency);
       const balance = await poofKit.balance(currency, senderAccount);
       const pToken = new web3.eth.Contract(
         ERC20Artifact.abi,
         poolMatch.poolAddress
       );
       const debt = await pToken.methods.balanceOf(senderAccount).call();
-      console.log(`Public balance: ${fromWei(balance)} ${currency}`);
-      console.log(`Public debt: ${fromWei(debt)} ${currency}`);
+      console.log(`Public balance: ${fromWei(balance)} ${poolMatch.symbol}`);
+      console.log(`Public debt: ${fromWei(debt)} ${poolMatch.pSymbol}`);
     }
   )
   .command(
