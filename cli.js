@@ -92,14 +92,19 @@ yargs
         toBN(toWei(amount)),
         toBN(0)
       );
-      const gas = await depositTxo.estimateGas({
-        value: poolMatch.token ? 0 : toWei(amount),
-        gasPrice,
-      });
-      const tx = await depositTxo.send({
+      const params = {
         from: senderAccount,
-        value: poolMatch.token ? 0 : toWei(amount),
+        to: poolMatch.poolAddress,
+        data: depositTxo.encodeABI(),
+        value: poolMatch.token
+          ? 0
+          : toBN(toWei(amount)).mul(toBN(100001)).div(toBN(100000)),
         gasPrice,
+        gas,
+      };
+      const gas = await web3.eth.estimateGas(params);
+      const tx = await web3.eth.sendTransaction({
+        ...params,
         gas,
       });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
@@ -121,16 +126,24 @@ yargs
     async (argv) => {
       await init();
       const { currency, amount } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
       const burnTxo = await poofKit.deposit(
         POOF_PRIVATE_KEY,
         currency,
         toBN(0),
         toBN(toWei(amount))
       );
-      const gas = await burnTxo.estimateGas({
+      const params = {
+        from: senderAccount,
+        to: poolMatch.poolAddress,
+        data: burnTxo.encodeABI(),
         gasPrice,
+      };
+      const gas = await web3.eth.estimateGas(params);
+      const tx = await web3.eth.sendTransaction({
+        ...params,
+        gas,
       });
-      const tx = await burnTxo.send({ from: senderAccount, gasPrice, gas });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
   )
@@ -158,6 +171,7 @@ yargs
     async (argv) => {
       await init();
       const { currency, amount, recipient, relayerUrl } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
       const res = await poofKit.withdraw(
         POOF_PRIVATE_KEY,
         currency,
@@ -171,10 +185,14 @@ yargs
         console.log(`Transaction: ${getExplorerTx(hash)}`);
       } else {
         const txo = res;
-        const gas = await txo.estimateGas({
+        const params = {
+          from: senderAccount,
+          to: poolMatch.poolAddress,
+          data: txo.encodeABI(),
           gasPrice,
-        });
-        const tx = await txo.send({ from: senderAccount, gasPrice, gas });
+        };
+        const gas = await web3.eth.estimateGas(params);
+        const tx = await web3.eth.sendTransaction({ ...params, gas });
         console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
       }
     }
@@ -185,24 +203,25 @@ yargs
     (yargs) => {
       yargs.positional("currency", {
         type: "string",
-        describe: "The ERC20 symbol to withdraw",
+        describe: "The ERC20 symbol to mint",
       });
       yargs.positional("amount", {
         type: "string",
-        describe: "The amount to withdraw",
+        describe: "The amount to mint",
       });
       yargs.positional("recipient", {
         type: "string",
-        describe: "The recipient address to send the withdrawal",
+        describe: "The recipient address to send the mint",
       });
       yargs.positional("relayerUrl", {
         type: "string",
-        describe: "Optional relayer URL for withdrawal",
+        describe: "Optional relayer URL for mint",
       });
     },
     async (argv) => {
       await init();
       const { currency, amount, recipient, relayerUrl } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
       const res = await poofKit.withdraw(
         POOF_PRIVATE_KEY,
         currency,
@@ -216,10 +235,14 @@ yargs
         console.log(`Transaction: ${getExplorerTx(hash)}`);
       } else {
         const txo = res;
-        const gas = await txo.estimateGas({
+        const params = {
+          from: senderAccount,
+          to: poolMatch.poolAddress,
+          data: txo.encodeABI(),
           gasPrice,
-        });
-        const tx = await txo.send({ from: senderAccount, gasPrice, gas });
+        };
+        const gas = await web3.eth.estimateGas(params);
+        const tx = await web3.eth.sendTransaction({ ...params, gas });
         console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
       }
     }
