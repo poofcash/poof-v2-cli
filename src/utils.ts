@@ -215,7 +215,9 @@ export const calculateFee = (
   const gasInCurrency =
     currencyCeloPrice > 1
       ? gasInWei.div(toBN(currencyCeloPrice))
-      : gasInWei.div(toBN(Math.ceil(currencyCeloPrice) * PRECISION));
+      : gasInWei
+          .div(toBN(Math.ceil(currencyCeloPrice * PRECISION)))
+          .mul(toBN(PRECISION));
 
   return gasInCurrency.add(relayerFee);
 };
