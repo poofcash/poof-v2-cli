@@ -148,7 +148,7 @@ export class PoofKit {
       if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
         const [depositWasm, depositZkey] = await getProofDeps([
           "https://poof.nyc3.digitaloceanspaces.com/Deposit.wasm.gz",
-          "https://poof.nyc3.digitaloceanspaces.com/Deposit_circuit_final.zkey.gz",
+          "https://cloudflare-ipfs.com/ipfs/bafybeicuhvy6kdplqnlhrlgfzpuhovdfepcia632qsoizxx3ylpkbwny2a/Deposit_circuit_final.zkey.gz",
         ]);
         this.initializeDeposit(depositWasm, depositZkey);
       }
@@ -194,7 +194,7 @@ export class PoofKit {
       if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
         const [withdrawWasm, withdrawZkey] = await getProofDeps([
           "https://poof.nyc3.digitaloceanspaces.com/Withdraw.wasm.gz",
-          "https://poof.nyc3.digitaloceanspaces.com/Withdraw_circuit_final.zkey.gz",
+          "https://cloudflare-ipfs.com/ipfs/bafybeiaefemhlonovjy76srwryt6gaxt544xcye4gsmqlmikthhmandgsy/Withdraw_circuit_final.zkey.gz",
         ]);
         this.initializeWithdraw(withdrawWasm, withdrawZkey);
       }
