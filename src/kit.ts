@@ -219,9 +219,10 @@ export class PoofKit {
       let relayer: string;
       if (relayerURL) {
         const relayerStatus = await axios.get(relayerURL + "/status");
-        const { celoPrices, rewardAccount, poofServiceFee } =
+        const { celoPrices, rewardAccount, poofServiceFee, gasPrices } =
           relayerStatus.data;
         const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
+        const gasPrice = Number(gasPrices["min"]);
         // Fee can come from amount or debt
         const feeFrom = amountInUnits.eq(toBN(0))
           ? debt.mul(unitPerUnderlying)
@@ -231,7 +232,8 @@ export class PoofKit {
           feeFrom,
           Number(currencyCeloPrice),
           poofServiceFee,
-          1e6
+          gasPrice,
+          2e6
         )
           .mul(toBN(1001))
           .div(toBN(1000));

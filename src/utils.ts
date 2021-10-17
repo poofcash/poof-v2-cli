@@ -187,12 +187,14 @@ export function bitsToNumber(bits) {
 // @amount Amount to transact in currency units
 // @currencyCeloPrice Prices relative to CELO of the currency to transact
 // @poofServiceFee Number between [0,100] representing relayer fee in percent
-// @gasLimit Max amount of gas in gwei
+// @gasPrice Gas price in gwei
+// @gasLimit Maximum amount of gas units
 // @return Fee in the transaction currency (in wei for 18 decimals)
 export const calculateFee = (
   amount: BN,
   currencyCeloPrice: number,
   poofServiceFee: number,
+  gasPrice: number,
   gasLimit: number
 ) => {
   if (currencyCeloPrice <= 0) {
@@ -206,7 +208,10 @@ export const calculateFee = (
     .div(toBN(PRECISION))
     .div(toBN(100));
 
-  const gasInWei = toBN(toWei(gasLimit.toString(), "gwei"));
+  const gasInWei = toBN(toWei(gasPrice.toString(), "gwei")).mul(
+    toBN(gasLimit.toString())
+  );
+
   const gasInCurrency =
     currencyCeloPrice > 1
       ? gasInWei.div(toBN(currencyCeloPrice))
