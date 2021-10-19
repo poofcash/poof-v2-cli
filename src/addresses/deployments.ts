@@ -9,21 +9,21 @@ type CurrencyEntry = {
 export const deployments: Record<string | number, Array<CurrencyEntry>> = {
   42220: [
     {
-      poolAddress: "0x7015A9e168a2Dc8Ef2afdABb7dD3b47F8E83d07A",
+      poolAddress: "0xE74AbF23E1Fdf7ACbec2F3a30a772eF77f1601E1",
       tokenAddress: "0x471EcE3750Da237f93B8E339c536989b8978a438",
       symbol: "CELO",
       pSymbol: "pCELO",
       decimals: 18,
     },
     {
-      poolAddress: "0xba13bD87671fA4Ff861D1dE16F751784027be09b",
+      poolAddress: "0xB4aa2986622249B1F45eb93F28Cfca2b2606d809",
       tokenAddress: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
       symbol: "cUSD",
       pSymbol: "pUSD",
       decimals: 18,
     },
     {
-      poolAddress: "0xb789eB26B60585D91BafD8927189cc17b820D3C2",
+      poolAddress: "0x56072D4832642dB29225dA12d6Fd1290E4744682",
       tokenAddress: "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73",
       symbol: "cEUR",
       pSymbol: "pEUR",
