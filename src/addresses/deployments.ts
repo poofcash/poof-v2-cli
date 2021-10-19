@@ -55,7 +55,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
   ],
   4002: [
     {
-      poolAddress: "0xE8977C8af7cCc1763d28fC9f7bb2B20237903F1b",
+      poolAddress: "0xb7e4e9329DA677969376cc76e87938563B07Ac6A",
       symbol: "FTM",
       pSymbol: "pFTM",
       decimals: 18,
@@ -63,7 +63,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
   ],
   250: [
     {
-      poolAddress: "0x989188f3b9C7E5BF25DA0B2EBdc1cf86891011aA",
+      poolAddress: "0x56072D4832642dB29225dA12d6Fd1290E4744682",
       symbol: "FTM",
       pSymbol: "pFTM",
       decimals: 18,
