@@ -27,36 +27,11 @@ export const DepositExtData = {
   },
 };
 
-export const AccountUpdate = {
-  AccountUpdate: {
-    inputRoot: "bytes32",
-    inputNullifierHash: "bytes32",
-    outputRoot: "bytes32",
-    outputPathIndices: "uint256",
-    outputCommitment: "bytes32",
-  },
-};
-
-export const DepositArgs = {
-  DepositArgs: {
-    rate: "uint256",
-    fee: "uint256",
-    instance: "address",
-    rewardNullifier: "bytes32",
-    extDataHash: "bytes32",
-    depositRoot: "bytes32",
-    withdrawalRoot: "bytes32",
-    extData: DepositExtData.DepositExtData,
-    account: AccountUpdate.AccountUpdate,
-  },
-};
-
 export const WithdrawExtData = {
   WithdrawExtData: {
     fee: "uint256",
     recipient: "address",
     relayer: "address",
-    depositProofHash: "bytes32",
     encryptedAccount: "bytes",
   },
 };
@@ -111,20 +86,10 @@ export function getExtDepositArgsHash({ encryptedAccount }) {
   return "0x00" + hash.slice(4); // cut last byte to make it 31 byte long to fit the snark field
 }
 
-export function getDepositProofHash(depositProof) {
-  if (!depositProof) {
-    return toFixedHex(0, 32);
-  }
-  const encodedData = web3.eth.abi.encodeParameters(["bytes"], [depositProof]);
-  const hash = soliditySha3({ t: "bytes", v: encodedData });
-  return "0x00" + hash.slice(4); // cut last byte to make it 31 byte long to fit the snark field
-}
-
 export function getExtWithdrawArgsHash({
   fee,
   recipient,
   relayer,
-  depositProofHash,
   encryptedAccount,
 }) {
   const encodedData = web3.eth.abi.encodeParameters(
@@ -134,7 +99,6 @@ export function getExtWithdrawArgsHash({
         fee: toFixedHex(fee, 32),
         recipient: toFixedHex(recipient, 20),
         relayer: toFixedHex(relayer, 20),
-        depositProofHash,
         encryptedAccount,
       },
     ]

@@ -6,7 +6,6 @@ import {
   getExtDepositArgsHash,
   getExtWithdrawArgsHash,
   packEncryptedMessage,
-  getDepositProofHash,
 } from "./utils";
 import { Account } from "./account";
 import MerkleTree from "fixed-merkle-tree";
@@ -35,6 +34,11 @@ type WithdrawParams = {
   fee: BN;
   relayer: 0 | string;
   accountCommitments?: BN[];
+};
+
+type ProofDep = {
+  wasm: Uint8Array;
+  zkey: Uint8Array;
 };
 
 const fetchAccountCommitments = async (poof: Poof) => {
@@ -69,6 +73,29 @@ export class Controller {
       pathElements,
       pathIndices: bitsToNumber(pathIndices),
     };
+  }
+
+  async getProof(input: any, dep: ProofDep) {
+    const { proof: depositProofData } = await this.snarkjs.plonk.fullProve(
+      utils.stringifyBigInts(input),
+      dep.wasm,
+      dep.zkey
+    );
+    return (
+      await this.snarkjs.plonk.exportSolidityCallData(
+        utils.unstringifyBigInts(depositProofData),
+        []
+      )
+    ).split(",")[0];
+  }
+
+  async getProofs(inputs: any[], deps: ProofDep[]) {
+    return await Promise.all(
+      inputs.map(async (input, idx) => {
+        const dep = deps[idx];
+        return await this.getProof(input, dep);
+      })
+    );
   }
 
   async deposit(
@@ -118,42 +145,69 @@ export class Controller {
     );
     const extDataHash = getExtDepositArgsHash({ encryptedAccount });
 
-    const input = {
-      amount,
-      debt,
-      unitPerUnderlying,
-      extDataHash,
+    const inputs = [
+      {
+        amount,
+        debt,
+        unitPerUnderlying,
+        extDataHash,
 
-      inputAmount: account.amount,
-      inputDebt: account.debt,
-      inputSecret: account.secret,
-      inputNullifier: account.nullifier,
-      inputRoot: accountTreeUpdate.oldRoot,
-      inputPathElements: accountPath.pathElements,
-      inputPathIndices: bitsToNumber(accountPath.pathIndices),
-      inputNullifierHash: account.nullifierHash,
+        inputAmount: account.amount,
+        inputDebt: account.debt,
+        inputSecret: account.secret,
+        inputNullifier: account.nullifier,
+        inputSalt: account.salt,
+        inputAccountHash: account.accountHash,
 
-      outputAmount: newAccount.amount,
-      outputDebt: newAccount.debt,
-      outputSecret: newAccount.secret,
-      outputNullifier: newAccount.nullifier,
-      outputRoot: accountTreeUpdate.newRoot,
-      outputPathIndices: accountTreeUpdate.pathIndices,
-      outputPathElements: accountTreeUpdate.pathElements,
-      outputCommitment: newAccount.commitment,
-    };
+        outputAmount: newAccount.amount,
+        outputDebt: newAccount.debt,
+        outputSecret: newAccount.secret,
+        outputNullifier: newAccount.nullifier,
+        outputSalt: newAccount.salt,
+        outputAccountHash: newAccount.accountHash,
+      },
+      {
+        inputAmount: account.amount,
+        inputDebt: account.debt,
+        inputSecret: account.secret,
+        inputNullifier: account.nullifier,
+        inputSalt: account.salt,
+        inputRoot: accountTreeUpdate.oldRoot,
+        inputPathElements: accountPath.pathElements,
+        inputPathIndices: bitsToNumber(accountPath.pathIndices),
+        inputNullifierHash: account.nullifierHash,
+        inputAccountHash: account.accountHash,
+      },
+      {
+        inputRoot: accountTreeUpdate.oldRoot,
 
-    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
-      utils.stringifyBigInts(input),
-      this.provingKeys.depositWasm,
-      this.provingKeys.depositZkey
-    );
-    const [proof] = (
-      await this.snarkjs.plonk.exportSolidityCallData(
-        utils.unstringifyBigInts(proofData),
-        []
-      )
-    ).split(",");
+        outputAmount: newAccount.amount,
+        outputDebt: newAccount.debt,
+        outputSecret: newAccount.secret,
+        outputNullifier: newAccount.nullifier,
+        outputSalt: newAccount.salt,
+        outputRoot: accountTreeUpdate.newRoot,
+        outputPathIndices: accountTreeUpdate.pathIndices,
+        outputPathElements: accountTreeUpdate.pathElements,
+        outputCommitment: newAccount.commitment,
+        outputAccountHash: newAccount.accountHash,
+      },
+    ];
+
+    const proofs = await this.getProofs(inputs, [
+      {
+        wasm: this.provingKeys.depositWasm,
+        zkey: this.provingKeys.depositZkey,
+      },
+      {
+        wasm: this.provingKeys.inputRootWasm,
+        zkey: this.provingKeys.inputRootZkey,
+      },
+      {
+        wasm: this.provingKeys.outputRootWasm,
+        zkey: this.provingKeys.outputRootZkey,
+      },
+    ]);
 
     const args = {
       amount: toFixedHex(amount),
@@ -164,16 +218,18 @@ export class Controller {
         encryptedAccount,
       },
       account: {
-        inputRoot: toFixedHex(input.inputRoot),
-        inputNullifierHash: toFixedHex(input.inputNullifierHash),
-        outputRoot: toFixedHex(input.outputRoot),
-        outputPathIndices: toFixedHex(input.outputPathIndices),
-        outputCommitment: toFixedHex(input.outputCommitment),
+        inputRoot: toFixedHex(accountTreeUpdate.oldRoot),
+        inputNullifierHash: toFixedHex(account.nullifierHash),
+        inputAccountHash: toFixedHex(account.accountHash),
+        outputRoot: toFixedHex(accountTreeUpdate.newRoot),
+        outputPathIndices: toFixedHex(accountTreeUpdate.pathIndices),
+        outputCommitment: toFixedHex(newAccount.commitment),
+        outputAccountHash: toFixedHex(newAccount.accountHash),
       },
     };
 
     return {
-      proof,
+      proofs,
       args,
       account: newAccount,
     };
@@ -186,17 +242,13 @@ export class Controller {
       amount: withdrawAmount,
       debt,
       unitPerUnderlying,
-      depositProof,
-      depositArgs,
       recipient,
       publicKey,
       fee = toBN(0),
       relayer = 0,
     }: WithdrawParams
   ) {
-    const amount = toBN(depositArgs ? depositArgs.amount : withdrawAmount).add(
-      fee
-    );
+    const amount = withdrawAmount.add(fee);
     const newAmount = account.amount.sub(amount);
     const newDebt = account.debt.add(debt);
     const newAccount = new Account({
@@ -229,74 +281,101 @@ export class Controller {
     const encryptedAccount = packEncryptedMessage(
       newAccount.encrypt(publicKey)
     );
-    const depositProofHash = getDepositProofHash(depositProof);
     const extDataHash = getExtWithdrawArgsHash({
       fee,
       recipient,
       relayer,
-      depositProofHash,
       encryptedAccount,
     });
 
-    const input = {
-      amount,
-      debt,
-      unitPerUnderlying,
-      extDataHash,
+    const inputs = [
+      {
+        amount,
+        debt,
+        unitPerUnderlying,
+        extDataHash,
 
-      inputAmount: account.amount,
-      inputDebt: account.debt,
-      inputSecret: account.secret,
-      inputNullifier: account.nullifier,
-      inputNullifierHash: account.nullifierHash,
-      inputRoot: accountTreeUpdate.oldRoot,
-      inputPathIndices: bitsToNumber(accountPath.pathIndices),
-      inputPathElements: accountPath.pathElements,
+        inputAmount: account.amount,
+        inputDebt: account.debt,
+        inputSecret: account.secret,
+        inputNullifier: account.nullifier,
+        inputSalt: account.salt,
+        inputAccountHash: account.accountHash,
 
-      outputAmount: newAccount.amount,
-      outputDebt: newAccount.debt,
-      outputSecret: newAccount.secret,
-      outputNullifier: newAccount.nullifier,
-      outputRoot: accountTreeUpdate.newRoot,
-      outputPathIndices: accountTreeUpdate.pathIndices,
-      outputPathElements: accountTreeUpdate.pathElements,
-      outputCommitment: newAccount.commitment,
-    };
+        outputAmount: newAccount.amount,
+        outputDebt: newAccount.debt,
+        outputSecret: newAccount.secret,
+        outputNullifier: newAccount.nullifier,
+        outputSalt: newAccount.salt,
+        outputAccountHash: newAccount.accountHash,
+      },
+      {
+        inputAmount: account.amount,
+        inputDebt: account.debt,
+        inputSecret: account.secret,
+        inputNullifier: account.nullifier,
+        inputSalt: account.salt,
+        inputRoot: accountTreeUpdate.oldRoot,
+        inputPathElements: accountPath.pathElements,
+        inputPathIndices: bitsToNumber(accountPath.pathIndices),
+        inputNullifierHash: account.nullifierHash,
+        inputAccountHash: account.accountHash,
+      },
+      {
+        inputRoot: accountTreeUpdate.oldRoot,
+
+        outputAmount: newAccount.amount,
+        outputDebt: newAccount.debt,
+        outputSecret: newAccount.secret,
+        outputNullifier: newAccount.nullifier,
+        outputSalt: newAccount.salt,
+        outputRoot: accountTreeUpdate.newRoot,
+        outputPathIndices: accountTreeUpdate.pathIndices,
+        outputPathElements: accountTreeUpdate.pathElements,
+        outputCommitment: newAccount.commitment,
+        outputAccountHash: newAccount.accountHash,
+      },
+    ];
+
+    const proofs = await this.getProofs(inputs, [
+      {
+        wasm: this.provingKeys.withdrawWasm,
+        zkey: this.provingKeys.withdrawZkey,
+      },
+      {
+        wasm: this.provingKeys.inputRootWasm,
+        zkey: this.provingKeys.inputRootZkey,
+      },
+      {
+        wasm: this.provingKeys.outputRootWasm,
+        zkey: this.provingKeys.outputRootZkey,
+      },
+    ]);
 
     const args = {
-      amount: toFixedHex(input.amount),
-      debt: toFixedHex(input.debt),
-      unitPerUnderlying: toFixedHex(input.unitPerUnderlying),
-      extDataHash: toFixedHex(input.extDataHash),
+      amount: toFixedHex(amount),
+      debt: toFixedHex(debt),
+      unitPerUnderlying: toFixedHex(unitPerUnderlying),
+      extDataHash,
       extData: {
         fee: toFixedHex(fee),
-        recipient: toFixedHex(recipient, 20),
         relayer: toFixedHex(relayer, 20),
-        depositProofHash,
+        recipient: toFixedHex(recipient, 20),
         encryptedAccount,
       },
       account: {
-        inputRoot: toFixedHex(input.inputRoot),
-        inputNullifierHash: toFixedHex(input.inputNullifierHash),
-        outputRoot: toFixedHex(input.outputRoot),
-        outputPathIndices: toFixedHex(input.outputPathIndices),
-        outputCommitment: toFixedHex(input.outputCommitment),
+        inputRoot: toFixedHex(accountTreeUpdate.oldRoot),
+        inputNullifierHash: toFixedHex(account.nullifierHash),
+        inputAccountHash: toFixedHex(account.accountHash),
+        outputRoot: toFixedHex(accountTreeUpdate.newRoot),
+        outputPathIndices: toFixedHex(accountTreeUpdate.pathIndices),
+        outputCommitment: toFixedHex(newAccount.commitment),
+        outputAccountHash: toFixedHex(newAccount.accountHash),
       },
     };
 
-    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
-      utils.stringifyBigInts(input),
-      this.provingKeys.withdrawWasm,
-      this.provingKeys.withdrawZkey
-    );
-    const [proof] = (
-      await this.snarkjs.plonk.exportSolidityCallData(
-        utils.unstringifyBigInts(proofData),
-        []
-      )
-    ).split(",");
     return {
-      proof,
+      proofs,
       args,
       account: newAccount,
     };

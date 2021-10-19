@@ -64,8 +64,19 @@ yargs
     async (argv) => {
       await init();
       const { currency } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
       const approveTxo = await poofKit.approve(currency, toWei("100"));
-      const tx = await approveTxo.send({ from: senderAccount });
+      const params = {
+        from: senderAccount,
+        to: poolMatch.tokenAddress,
+        data: approveTxo.encodeABI(),
+        gasPrice,
+      };
+      const gas = await web3.eth.estimateGas(params);
+      const tx = await web3.eth.sendTransaction({
+        ...params,
+        gas,
+      });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
   )
@@ -96,11 +107,10 @@ yargs
         from: senderAccount,
         to: poolMatch.poolAddress,
         data: depositTxo.encodeABI(),
-        value: poolMatch.token
+        value: poolMatch.tokenAddress
           ? 0
           : toBN(toWei(amount)).mul(toBN(100001)).div(toBN(100000)),
         gasPrice,
-        gas,
       };
       const gas = await web3.eth.estimateGas(params);
       const tx = await web3.eth.sendTransaction({

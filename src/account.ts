@@ -8,6 +8,9 @@ export class Account {
   public debt: BN;
   public secret: BN;
   public nullifier: BN;
+  public salt: BN;
+
+  public accountHash: BN;
   public commitment: BN;
   public nullifierHash: BN;
 
@@ -26,12 +29,20 @@ export class Account {
     this.debt = debt ? toBN(debt.toString()) : toBN("0");
     this.secret = secret ? toBN(secret.toString()) : randomBN(31);
     this.nullifier = nullifier ? toBN(nullifier.toString()) : randomBN(31);
+    this.salt = randomBN(31);
 
     this.commitment = poseidonHash([
       this.amount,
       this.debt,
       this.secret,
       this.nullifier,
+    ]);
+    this.accountHash = poseidonHash([
+      this.amount,
+      this.debt,
+      this.secret,
+      this.nullifier,
+      this.salt,
     ]);
     this.nullifierHash = poseidonHash([this.nullifier]);
 
