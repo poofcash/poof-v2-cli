@@ -28,6 +28,7 @@ const init = async () => {
     44787: toWei("0.5", "gwei"),
     42220: toWei("0.5", "gwei"),
     4002: toWei("100", "gwei"),
+    250: toWei("200", "gwei"),
   }[netId];
 };
 const getExplorerTx = (hash) => {
