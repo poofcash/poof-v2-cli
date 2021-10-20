@@ -17,7 +17,7 @@ let poofKit, netId, explorer, gasPrice;
 const init = async () => {
   netId = await web3.eth.getChainId();
   poofKit = new PoofKit(web3);
-  poofKit.initialize(snarkjs);
+  poofKit.initialize(() => snarkjs);
   explorer = {
     44787: "https://alfajores-blockscout.celo-testnet.org",
     42220: "https://explorer.celo.org",

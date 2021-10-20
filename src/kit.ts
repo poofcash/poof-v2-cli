@@ -11,7 +11,6 @@ import { deployments } from "./addresses/deployments";
 import { ERC20 } from "./generated/ERC20";
 import BN from "bn.js";
 import { Poof } from "./generated/Poof";
-import fs from "fs";
 
 const TRIES = 15;
 const TRY_DELAY = 5000;
@@ -41,12 +40,12 @@ export class PoofKit {
   private poof: Contract;
   private controller: Controller;
   private provingKeys: ProvingKeys = {};
-  private snarkjs: any;
+  private getSnarkJs: () => any;
 
   constructor(private web3: any) {}
 
-  initialize(snarkjs: any) {
-    this.snarkjs = snarkjs;
+  initialize(getSnarkJs: () => any) {
+    this.getSnarkJs = getSnarkJs;
   }
 
   async poofEvents(eventName: string, fromBlock: number): Promise<EventData[]> {
@@ -61,7 +60,7 @@ export class PoofKit {
     this.provingKeys.depositZkey = depositZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
-      snarkjs: this.snarkjs,
+      getSnarkJs: this.getSnarkJs,
     });
   }
 
@@ -70,7 +69,7 @@ export class PoofKit {
     this.provingKeys.inputRootZkey = inputRootZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
-      snarkjs: this.snarkjs,
+      getSnarkJs: this.getSnarkJs,
     });
   }
 
@@ -79,7 +78,7 @@ export class PoofKit {
     this.provingKeys.outputRootZkey = outputRootZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
-      snarkjs: this.snarkjs,
+      getSnarkJs: this.getSnarkJs,
     });
   }
 
@@ -88,7 +87,7 @@ export class PoofKit {
     this.provingKeys.withdrawZkey = withdrawZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
-      snarkjs: this.snarkjs,
+      getSnarkJs: this.getSnarkJs,
     });
   }
 
@@ -315,7 +314,7 @@ export class PoofKit {
       if (relayerURL) {
         console.info("Sending withdraw transaction through relay");
         try {
-          const endpoint = isWithdraw ? "/v2/withdraw" : "/v2/mint";
+          const endpoint = isWithdraw ? "/v3/withdraw" : "/v3/mint";
           const relay = await axios.post(relayerURL + endpoint, {
             contract: poolAddress,
             proofs,

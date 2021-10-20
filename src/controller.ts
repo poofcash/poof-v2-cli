@@ -54,11 +54,11 @@ const fetchAccountCommitments = async (poof: Poof) => {
 export class Controller {
   private merkleTreeHeight: number;
   private provingKeys: any;
-  private snarkjs: any;
+  private getSnarkJs: any;
 
-  constructor({ merkleTreeHeight = 20, snarkjs, provingKeys }) {
+  constructor({ merkleTreeHeight = 20, getSnarkJs, provingKeys }) {
     this.merkleTreeHeight = Number(merkleTreeHeight);
-    this.snarkjs = snarkjs;
+    this.getSnarkJs = getSnarkJs;
     this.provingKeys = provingKeys;
   }
 
@@ -76,13 +76,13 @@ export class Controller {
   }
 
   async getProof(input: any, dep: ProofDep) {
-    const { proof: depositProofData } = await this.snarkjs.plonk.fullProve(
+    const { proof: depositProofData } = await this.getSnarkJs().plonk.fullProve(
       utils.stringifyBigInts(input),
       dep.wasm,
       dep.zkey
     );
     return (
-      await this.snarkjs.plonk.exportSolidityCallData(
+      await this.getSnarkJs().plonk.exportSolidityCallData(
         utils.unstringifyBigInts(depositProofData),
         []
       )
@@ -398,13 +398,13 @@ export class Controller {
       pathElements: accountTreeUpdate.pathElements,
     };
 
-    const { proof: proofData } = await this.snarkjs.plonk.fullProve(
+    const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
       utils.stringifyBigInts(input),
       this.provingKeys.treeUpdateWasm,
       this.provingKeys.treeUpdateZkey
     );
     const [proof] = (
-      await this.snarkjs.plonk.exportSolidityCallData(
+      await this.getSnarkJs().plonk.exportSolidityCallData(
         utils.unstringifyBigInts(proofData),
         []
       )
