@@ -2,7 +2,7 @@ import { toBN, AbiItem } from "web3-utils";
 import { Contract, EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
-import { calculateFee, getProofDeps, unpackEncryptedMessage } from "./utils";
+import { calculateFee, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
 import { Controller } from "./controller";
 import { Account } from "./account";
@@ -23,17 +23,17 @@ export type PoofDeposit = {
   encryptedNote: string;
 };
 
-type ProvingKeys = {
-  depositWasm?: Uint8Array;
-  depositZkey?: Uint8Array;
-  withdrawWasm?: Uint8Array;
-  withdrawZkey?: Uint8Array;
-  inputRootWasm?: Uint8Array;
-  inputRootZkey?: Uint8Array;
-  outputRootWasm?: Uint8Array;
-  outputRootZkey?: Uint8Array;
-  treeUpdateWasm?: Uint8Array;
-  treeUpdateZkey?: Uint8Array;
+export type ProvingKeys = {
+  getDepositWasm?: () => Promise<Uint8Array>;
+  getDepositZkey?: () => Promise<Uint8Array>;
+  getWithdrawWasm?: () => Promise<Uint8Array>;
+  getWithdrawZkey?: () => Promise<Uint8Array>;
+  getInputRootWasm?: () => Promise<Uint8Array>;
+  getInputRootZkey?: () => Promise<Uint8Array>;
+  getOutputRootWasm?: () => Promise<Uint8Array>;
+  getOutputRootZkey?: () => Promise<Uint8Array>;
+  getTreeUpdateWasm?: () => Promise<Uint8Array>;
+  getTreeUpdateZkey?: () => Promise<Uint8Array>;
 };
 
 export class PoofKit {
@@ -55,36 +55,48 @@ export class PoofKit {
     });
   }
 
-  initializeDeposit(depositWasm: Uint8Array, depositZkey: Uint8Array) {
-    this.provingKeys.depositWasm = depositWasm;
-    this.provingKeys.depositZkey = depositZkey;
+  initializeDeposit(
+    getDepositWasm: () => Promise<Uint8Array>,
+    getDepositZkey: () => Promise<Uint8Array>
+  ) {
+    this.provingKeys.getDepositWasm = getDepositWasm;
+    this.provingKeys.getDepositZkey = getDepositZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
       getSnarkJs: this.getSnarkJs,
     });
   }
 
-  initializeInputRoot(inputRootWasm: Uint8Array, inputRootZkey: Uint8Array) {
-    this.provingKeys.inputRootWasm = inputRootWasm;
-    this.provingKeys.inputRootZkey = inputRootZkey;
+  initializeInputRoot(
+    getInputRootWasm: () => Promise<Uint8Array>,
+    getInputRootZkey: () => Promise<Uint8Array>
+  ) {
+    this.provingKeys.getInputRootWasm = getInputRootWasm;
+    this.provingKeys.getInputRootZkey = getInputRootZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
       getSnarkJs: this.getSnarkJs,
     });
   }
 
-  initializeOutputRoot(outputRootWasm: Uint8Array, outputRootZkey: Uint8Array) {
-    this.provingKeys.outputRootWasm = outputRootWasm;
-    this.provingKeys.outputRootZkey = outputRootZkey;
+  initializeOutputRoot(
+    getOutputRootWasm: () => Promise<Uint8Array>,
+    getOutputRootZkey: () => Promise<Uint8Array>
+  ) {
+    this.provingKeys.getOutputRootWasm = getOutputRootWasm;
+    this.provingKeys.getOutputRootZkey = getOutputRootZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
       getSnarkJs: this.getSnarkJs,
     });
   }
 
-  initializeWithdraw(withdrawWasm: Uint8Array, withdrawZkey: Uint8Array) {
-    this.provingKeys.withdrawWasm = withdrawWasm;
-    this.provingKeys.withdrawZkey = withdrawZkey;
+  initializeWithdraw(
+    getWithdrawWasm: () => Promise<Uint8Array>,
+    getWithdrawZkey: () => Promise<Uint8Array>
+  ) {
+    this.provingKeys.getWithdrawWasm = getWithdrawWasm;
+    this.provingKeys.getWithdrawZkey = getWithdrawZkey;
     this.controller = new Controller({
       provingKeys: this.provingKeys,
       getSnarkJs: this.getSnarkJs,
@@ -165,33 +177,19 @@ export class PoofKit {
     debt: BN,
     accountEvents?: EventData[]
   ) {
+    if (
+      !this.provingKeys.getDepositWasm ||
+      !this.provingKeys.getDepositZkey ||
+      !this.provingKeys.getInputRootWasm ||
+      !this.provingKeys.getInputRootZkey ||
+      !this.provingKeys.getOutputRootWasm ||
+      !this.provingKeys.getOutputRootZkey
+    ) {
+      return null;
+    }
+
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
-      if (!this.provingKeys.depositWasm || !this.provingKeys.depositZkey) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz",
-        ]);
-        this.initializeDeposit(wasm, zkey);
-      }
-      if (!this.provingKeys.inputRootWasm || !this.provingKeys.inputRootZkey) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
-        ]);
-        this.initializeInputRoot(wasm, zkey);
-      }
-      if (
-        !this.provingKeys.outputRootWasm ||
-        !this.provingKeys.outputRootZkey
-      ) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
-        ]);
-        this.initializeOutputRoot(wasm, zkey);
-      }
-
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolMatch.poolAddress
@@ -227,34 +225,20 @@ export class PoofKit {
     relayerURL?: string,
     accountEvents?: EventData[]
   ) {
+    if (
+      !this.provingKeys.getDepositWasm ||
+      !this.provingKeys.getDepositZkey ||
+      !this.provingKeys.getInputRootWasm ||
+      !this.provingKeys.getInputRootZkey ||
+      !this.provingKeys.getOutputRootWasm ||
+      !this.provingKeys.getOutputRootZkey
+    ) {
+      return null;
+    }
+
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
       const { poolAddress } = poolMatch;
-
-      if (!this.provingKeys.withdrawWasm || !this.provingKeys.withdrawZkey) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz",
-        ]);
-        this.initializeWithdraw(wasm, zkey);
-      }
-      if (!this.provingKeys.inputRootWasm || !this.provingKeys.inputRootZkey) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
-        ]);
-        this.initializeInputRoot(wasm, zkey);
-      }
-      if (
-        !this.provingKeys.outputRootWasm ||
-        !this.provingKeys.outputRootZkey
-      ) {
-        const [wasm, zkey] = await getProofDeps([
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
-          "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
-        ]);
-        this.initializeOutputRoot(wasm, zkey);
-      }
       const poof = new this.web3.eth.Contract(
         PoofArtifact.abi as AbiItem[],
         poolAddress

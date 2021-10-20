@@ -12,6 +12,7 @@ import MerkleTree from "fixed-merkle-tree";
 import BN from "bn.js";
 import { utils } from "ffjavascript";
 import { Poof } from "./generated/Poof";
+import { ProvingKeys } from "./kit";
 
 type DepositParams = {
   account: Account;
@@ -37,8 +38,8 @@ type WithdrawParams = {
 };
 
 type ProofDep = {
-  wasm: Uint8Array;
-  zkey: Uint8Array;
+  getWasm: () => Promise<Uint8Array>;
+  getZkey: () => Promise<Uint8Array>;
 };
 
 const fetchAccountCommitments = async (poof: Poof) => {
@@ -53,8 +54,8 @@ const fetchAccountCommitments = async (poof: Poof) => {
 
 export class Controller {
   private merkleTreeHeight: number;
-  private provingKeys: any;
-  private getSnarkJs: any;
+  private provingKeys: ProvingKeys;
+  private getSnarkJs: () => any;
 
   constructor({ merkleTreeHeight = 20, getSnarkJs, provingKeys }) {
     this.merkleTreeHeight = Number(merkleTreeHeight);
@@ -76,13 +77,14 @@ export class Controller {
   }
 
   async getProof(input: any, dep: ProofDep) {
-    const { proof: depositProofData } = await this.getSnarkJs().plonk.fullProve(
+    const snarkJs = this.getSnarkJs();
+    const { proof: depositProofData } = await snarkJs.plonk.fullProve(
       utils.stringifyBigInts(input),
-      dep.wasm,
-      dep.zkey
+      await dep.getWasm(),
+      await dep.getZkey()
     );
     return (
-      await this.getSnarkJs().plonk.exportSolidityCallData(
+      await snarkJs.plonk.exportSolidityCallData(
         utils.unstringifyBigInts(depositProofData),
         []
       )
@@ -196,16 +198,16 @@ export class Controller {
 
     const proofs = await this.getProofs(inputs, [
       {
-        wasm: this.provingKeys.depositWasm,
-        zkey: this.provingKeys.depositZkey,
+        getWasm: this.provingKeys.getDepositWasm,
+        getZkey: this.provingKeys.getDepositZkey,
       },
       {
-        wasm: this.provingKeys.inputRootWasm,
-        zkey: this.provingKeys.inputRootZkey,
+        getWasm: this.provingKeys.getInputRootWasm,
+        getZkey: this.provingKeys.getInputRootZkey,
       },
       {
-        wasm: this.provingKeys.outputRootWasm,
-        zkey: this.provingKeys.outputRootZkey,
+        getWasm: this.provingKeys.getOutputRootWasm,
+        getZkey: this.provingKeys.getOutputRootZkey,
       },
     ]);
 
@@ -339,16 +341,16 @@ export class Controller {
 
     const proofs = await this.getProofs(inputs, [
       {
-        wasm: this.provingKeys.withdrawWasm,
-        zkey: this.provingKeys.withdrawZkey,
+        getWasm: this.provingKeys.getWithdrawWasm,
+        getZkey: this.provingKeys.getWithdrawZkey,
       },
       {
-        wasm: this.provingKeys.inputRootWasm,
-        zkey: this.provingKeys.inputRootZkey,
+        getWasm: this.provingKeys.getInputRootWasm,
+        getZkey: this.provingKeys.getInputRootZkey,
       },
       {
-        wasm: this.provingKeys.outputRootWasm,
-        zkey: this.provingKeys.outputRootZkey,
+        getWasm: this.provingKeys.getOutputRootWasm,
+        getZkey: this.provingKeys.getOutputRootZkey,
       },
     ]);
 
@@ -400,8 +402,8 @@ export class Controller {
 
     const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
       utils.stringifyBigInts(input),
-      this.provingKeys.treeUpdateWasm,
-      this.provingKeys.treeUpdateZkey
+      await this.provingKeys.getTreeUpdateWasm(),
+      await this.provingKeys.getTreeUpdateZkey()
     );
     const [proof] = (
       await this.getSnarkJs().plonk.exportSolidityCallData(

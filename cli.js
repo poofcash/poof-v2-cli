@@ -3,6 +3,7 @@
 require("dotenv").config();
 const Web3 = require("web3");
 const { PoofKit } = require("./dist");
+const { getProofDeps } = require("./dist");
 const { toWei, toBN, fromWei } = require("web3-utils");
 const yargs = require("yargs");
 const snarkjs = require("snarkjs");
@@ -30,7 +31,46 @@ const init = async () => {
     4002: toWei("100", "gwei"),
     250: toWei("200", "gwei"),
   }[netId];
+
+  // Initialize deps
+  await getProofDeps([
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz",
+  ]).then((deps) =>
+    poofKit.initializeDeposit(
+      async () => deps[0],
+      async () => deps[1]
+    )
+  );
+  await getProofDeps([
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz",
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz",
+  ]).then((deps) =>
+    poofKit.initializeWithdraw(
+      async () => deps[0],
+      async () => deps[1]
+    )
+  );
+  await getProofDeps([
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
+  ]).then((deps) =>
+    poofKit.initializeInputRoot(
+      async () => deps[0],
+      async () => deps[1]
+    )
+  );
+  await getProofDeps([
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
+    "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
+  ]).then((deps) =>
+    poofKit.initializeOutputRoot(
+      async () => deps[0],
+      async () => deps[1]
+    )
+  );
 };
+
 const getExplorerTx = (hash) => {
   return `${explorer}/tx/${hash}`;
 };
