@@ -3,7 +3,8 @@ type CurrencyEntry = {
   tokenAddress?: string;
   symbol: string;
   pSymbol: string;
-  decimals: 18;
+  decimals: number;
+  creationBlock: number;
 };
 
 export const deployments: Record<string | number, Array<CurrencyEntry>> = {
@@ -14,6 +15,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "CELO",
       pSymbol: "pCELO",
       decimals: 18,
+      creationBlock: 9419623,
     },
     {
       poolAddress: "0xB4aa2986622249B1F45eb93F28Cfca2b2606d809",
@@ -21,6 +23,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "cUSD",
       pSymbol: "pUSD",
       decimals: 18,
+      creationBlock: 9419624,
     },
     {
       poolAddress: "0x56072D4832642dB29225dA12d6Fd1290E4744682",
@@ -28,6 +31,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "cEUR",
       pSymbol: "pEUR",
       decimals: 18,
+      creationBlock: 9419625,
     },
   ],
   44787: [
@@ -37,6 +41,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "CELO",
       pSymbol: "pCELO",
       decimals: 18,
+      creationBlock: 7863536,
     },
     {
       poolAddress: "0x9d8D44f68642668980Af3f3e32Ad31682e41bEf4",
@@ -44,6 +49,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "cUSD",
       pSymbol: "pUSD",
       decimals: 18,
+      creationBlock: 7863537,
     },
     {
       poolAddress: "0xD5db1B389948dA50b190579De818e0d081a87D48",
@@ -51,6 +57,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "cEUR",
       pSymbol: "pEUR",
       decimals: 18,
+      creationBlock: 7863538,
     },
   ],
   4002: [
@@ -59,6 +66,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "FTM",
       pSymbol: "pFTM",
       decimals: 18,
+      creationBlock: 4449905,
     },
   ],
   250: [
@@ -67,6 +75,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "FTM",
       pSymbol: "pFTM",
       decimals: 18,
+      creationBlock: 19546119,
     },
   ],
   80001: [
@@ -75,6 +84,16 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "MATIC",
       pSymbol: "pMATIC",
       decimals: 18,
+      creationBlock: 20543511,
+    },
+  ],
+  137: [
+    {
+      poolAddress: "0xEfc83b8EfCc03cC2ECc28C542A7bf4D9e4Ce9a6E", // 0xbf03e0f7D8dFB17e4680C4D4748A614968aD5495
+      symbol: "MATIC",
+      pSymbol: "pMATIC",
+      decimals: 18,
+      creationBlock: 20568728,
     },
   ],
   43113: [
@@ -83,6 +102,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "AVAX",
       pSymbol: "pAVAX",
       decimals: 18,
+      creationBlock: 2163000,
     },
   ],
   43114: [
@@ -91,6 +111,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "AVAX",
       pSymbol: "pAVAX",
       decimals: 18,
+      creationBlock: 6053349,
     },
   ],
 };

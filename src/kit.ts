@@ -202,7 +202,7 @@ export class PoofKit {
         amount: amountInUnits,
         debt,
         unitPerUnderlying,
-        accountCommitments: await this.fetchAccountCommitments(poof),
+        accountCommitments: await this.fetchAccountCommitments(currency),
       });
       return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
     }
@@ -286,7 +286,7 @@ export class PoofKit {
         publicKey,
         fee,
         relayer,
-        accountCommitments: await this.fetchAccountCommitments(poof),
+        accountCommitments: await this.fetchAccountCommitments(currency),
       });
       const isWithdraw = debt.eq(toBN(0));
       if (relayerURL) {
@@ -356,7 +356,7 @@ export class PoofKit {
         (await getPastEvents(
           poof,
           "NewAccount",
-          0,
+          poolMatch.creationBlock,
           await this.web3.eth.getBlockNumber()
         ));
       // Sort events descending by time and stop at the first account that decrypts
@@ -383,16 +383,24 @@ export class PoofKit {
     return null;
   }
 
-  async fetchAccountCommitments(poof: Poof) {
-    const events = await getPastEvents(
-      poof,
-      "NewAccount",
-      0,
-      await this.web3.eth.getBlockNumber()
-    );
-    return events
-      .sort((a, b) => a.returnValues.index - b.returnValues.index)
-      .map((e) => toBN(e.returnValues.commitment));
+  async fetchAccountCommitments(currency: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi,
+        poolMatch.poolAddress
+      );
+      const events = await getPastEvents(
+        poof,
+        "NewAccount",
+        poolMatch.creationBlock,
+        await this.web3.eth.getBlockNumber()
+      );
+      return events
+        .sort((a, b) => a.returnValues.index - b.returnValues.index)
+        .map((e) => toBN(e.returnValues.commitment));
+    }
+    return null;
   }
 
   async verify(currency: string) {

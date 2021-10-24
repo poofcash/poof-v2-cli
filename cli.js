@@ -26,6 +26,7 @@ const init = async (skipDeps) => {
     4002: "https://explorer.testnet.fantom.network",
     250: "https://explorer.fantom.network",
     80001: "https://mumbai.polygonscan.com",
+    137: "https://polygonscan.com",
     43113: "https://explorer.avax-test.network",
     43114: "https://explorer.avax.network",
   }[netId];
@@ -35,6 +36,7 @@ const init = async (skipDeps) => {
     4002: toWei("100", "gwei"),
     250: toWei("200", "gwei"),
     80001: toWei("10", "gwei"),
+    137: toWei("60", "gwei"),
     43113: toWei("30", "gwei"),
     43114: toWei("30", "gwei"),
   }[netId];
