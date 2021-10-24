@@ -27,7 +27,7 @@ const init = async (skipDeps) => {
     250: "https://explorer.fantom.network",
     80001: "https://mumbai.polygonscan.com",
     137: "https://polygonscan.com",
-    43113: "https://explorer.avax-test.network",
+    43113: "https://cchain.explorer.avax-test.network",
     43114: "https://cchain.explorer.avax.network",
   }[netId];
   gasPrice = {
