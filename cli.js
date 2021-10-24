@@ -15,7 +15,7 @@ const { address: senderAccount } = web3.eth.accounts.wallet.add(PRIVATE_KEY);
 
 let poofKit, netId, explorer, gasPrice;
 
-const init = async () => {
+const init = async (skipDeps) => {
   netId = await web3.eth.getChainId();
   poofKit = new PoofKit(web3);
   poofKit.initialize(() => snarkjs);
@@ -24,51 +24,57 @@ const init = async () => {
     42220: "https://explorer.celo.org",
     4002: "https://explorer.testnet.fantom.network",
     250: "https://explorer.fantom.network",
+    80001: "https://mumbai.polygonscan.com",
+    43113: "https://explorer.avax-test.network",
   }[netId];
   gasPrice = {
     44787: toWei("0.5", "gwei"),
     42220: toWei("0.5", "gwei"),
     4002: toWei("100", "gwei"),
     250: toWei("200", "gwei"),
+    80001: toWei("10", "gwei"),
+    43113: toWei("30", "gwei"),
   }[netId];
 
-  // Initialize deps
-  await getProofDeps([
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz",
-  ]).then((deps) =>
-    poofKit.initializeDeposit(
-      async () => deps[0],
-      async () => deps[1]
-    )
-  );
-  await getProofDeps([
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz",
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz",
-  ]).then((deps) =>
-    poofKit.initializeWithdraw(
-      async () => deps[0],
-      async () => deps[1]
-    )
-  );
-  await getProofDeps([
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
-  ]).then((deps) =>
-    poofKit.initializeInputRoot(
-      async () => deps[0],
-      async () => deps[1]
-    )
-  );
-  await getProofDeps([
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
-    "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
-  ]).then((deps) =>
-    poofKit.initializeOutputRoot(
-      async () => deps[0],
-      async () => deps[1]
-    )
-  );
+  if (!skipDeps) {
+    // Initialize deps
+    await getProofDeps([
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz",
+    ]).then((deps) =>
+      poofKit.initializeDeposit(
+        async () => deps[0],
+        async () => deps[1]
+      )
+    );
+    await getProofDeps([
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz",
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz",
+    ]).then((deps) =>
+      poofKit.initializeWithdraw(
+        async () => deps[0],
+        async () => deps[1]
+      )
+    );
+    await getProofDeps([
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
+    ]).then((deps) =>
+      poofKit.initializeInputRoot(
+        async () => deps[0],
+        async () => deps[1]
+      )
+    );
+    await getProofDeps([
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
+      "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
+    ]).then((deps) =>
+      poofKit.initializeOutputRoot(
+        async () => deps[0],
+        async () => deps[1]
+      )
+    );
+  }
 };
 
 const getExplorerTx = (hash) => {
@@ -190,10 +196,10 @@ yargs
         data: burnTxo.encodeABI(),
         gasPrice,
       };
-      const gas = await web3.eth.estimateGas(params);
+      // const gas = await web3.eth.estimateGas(params);
       const tx = await web3.eth.sendTransaction({
         ...params,
-        gas,
+        gas: 2e6,
       });
       console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
     }
@@ -317,7 +323,7 @@ yargs
       });
     },
     async (argv) => {
-      await init();
+      await init(true);
       const { currency } = argv;
       const account = await poofKit.getLatestAccount(
         POOF_PRIVATE_KEY,

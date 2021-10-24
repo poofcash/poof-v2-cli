@@ -69,4 +69,20 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       decimals: 18,
     },
   ],
+  80001: [
+    {
+      poolAddress: "0x0C171f145Ce7570cc94Cfc39b6f219F4C2d3eFCf", // 0xD368d1195dE89f189641B9609273e10248A7B641
+      symbol: "MATIC",
+      pSymbol: "pMATIC",
+      decimals: 18,
+    },
+  ],
+  43113: [
+    {
+      poolAddress: "0x0824C3Ed3bF48E5A0dB14c36a1fa44D68f0D79AC", // 0xCB6b9b4b2D519c0ADdE2142Cc695464c39369aB4
+      symbol: "AVAX",
+      pSymbol: "pAVAX",
+      decimals: 18,
+    },
+  ],
 };
