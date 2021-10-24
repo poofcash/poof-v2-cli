@@ -27,6 +27,7 @@ const init = async (skipDeps) => {
     250: "https://explorer.fantom.network",
     80001: "https://mumbai.polygonscan.com",
     43113: "https://explorer.avax-test.network",
+    43114: "https://explorer.avax.network",
   }[netId];
   gasPrice = {
     44787: toWei("0.5", "gwei"),
@@ -35,6 +36,7 @@ const init = async (skipDeps) => {
     250: toWei("200", "gwei"),
     80001: toWei("10", "gwei"),
     43113: toWei("30", "gwei"),
+    43114: toWei("30", "gwei"),
   }[netId];
 
   if (!skipDeps && !depsInitialized) {
