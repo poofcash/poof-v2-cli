@@ -28,7 +28,7 @@ const init = async (skipDeps) => {
     80001: "https://mumbai.polygonscan.com",
     137: "https://polygonscan.com",
     43113: "https://explorer.avax-test.network",
-    43114: "https://explorer.avax.network",
+    43114: "https://cchain.explorer.avax.network",
   }[netId];
   gasPrice = {
     44787: toWei("0.5", "gwei"),
@@ -410,14 +410,22 @@ yargs
 
       console.log("Depositing...");
       await deposit({ ...argv, amount: amount1 });
+      await new Promise((r) => setTimeout(r, 5000));
       await balances(argv);
+
       console.log("Minting...");
       await mint({ ...argv, amount: amount2 });
+      await new Promise((r) => setTimeout(r, 5000));
       await balances(argv);
+
       console.log("Burning...");
       await burn({ ...argv, amount: amount2 });
+      await new Promise((r) => setTimeout(r, 5000));
+      await balances(argv);
+
       console.log("Withdrawing...");
       await withdraw({ ...argv, amount: amount1 });
+      await new Promise((r) => setTimeout(r, 5000));
       await balances(argv);
     }
   )
