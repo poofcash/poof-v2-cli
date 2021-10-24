@@ -13,11 +13,12 @@ const { PRIVATE_KEY, RPC_URL, POOF_PRIVATE_KEY } = process.env;
 const web3 = new Web3(RPC_URL);
 const { address: senderAccount } = web3.eth.accounts.wallet.add(PRIVATE_KEY);
 
-let poofKit, netId, explorer, gasPrice;
+let poofKit, netId, explorer, gasPrice, depsInitialized;
+const gas = 2e6;
 
 const init = async (skipDeps) => {
   netId = await web3.eth.getChainId();
-  poofKit = new PoofKit(web3);
+  poofKit = poofKit || new PoofKit(web3); // Only initialize once
   poofKit.initialize(() => snarkjs);
   explorer = {
     44787: "https://alfajores-blockscout.celo-testnet.org",
@@ -36,7 +37,7 @@ const init = async (skipDeps) => {
     43113: toWei("30", "gwei"),
   }[netId];
 
-  if (!skipDeps) {
+  if (!skipDeps && !depsInitialized) {
     // Initialize deps
     await getProofDeps([
       "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
@@ -74,7 +75,161 @@ const init = async (skipDeps) => {
         async () => deps[1]
       )
     );
+    depsInitialized = true;
   }
+};
+
+const approve = async (argv) => {
+  await init();
+  const { currency } = argv;
+  const poolMatch = await poofKit.poolMatch(currency);
+  const approveTxo = await poofKit.approve(currency, toWei("100"));
+  const params = {
+    from: senderAccount,
+    to: poolMatch.tokenAddress,
+    data: approveTxo.encodeABI(),
+    gasPrice,
+  };
+  const gas = await web3.eth.estimateGas(params);
+  const tx = await web3.eth.sendTransaction({
+    ...params,
+    gas,
+  });
+  console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+};
+
+const deposit = async (argv) => {
+  await init();
+  const { currency, amount } = argv;
+  const poolMatch = await poofKit.poolMatch(currency);
+  const depositTxo = await poofKit.deposit(
+    POOF_PRIVATE_KEY,
+    currency,
+    toBN(toWei(amount)),
+    toBN(0)
+  );
+  const params = {
+    from: senderAccount,
+    to: poolMatch.poolAddress,
+    data: depositTxo.encodeABI(),
+    value: poolMatch.tokenAddress
+      ? 0
+      : toBN(toWei(amount)).mul(toBN(100001)).div(toBN(100000)),
+    gasPrice,
+  };
+  // const gas = await web3.eth.estimateGas(params);
+  const tx = await web3.eth.sendTransaction({
+    ...params,
+    gas,
+  });
+  console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+};
+
+const burn = async (argv) => {
+  await init();
+  const { currency, amount } = argv;
+  const poolMatch = await poofKit.poolMatch(currency);
+  const burnTxo = await poofKit.deposit(
+    POOF_PRIVATE_KEY,
+    currency,
+    toBN(0),
+    toBN(toWei(amount))
+  );
+  const params = {
+    from: senderAccount,
+    to: poolMatch.poolAddress,
+    data: burnTxo.encodeABI(),
+    gasPrice,
+  };
+  // const gas = await web3.eth.estimateGas(params);
+  const tx = await web3.eth.sendTransaction({
+    ...params,
+    gas,
+  });
+  console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+};
+
+const withdraw = async (argv) => {
+  await init();
+  const { currency, amount, recipient, relayerUrl } = argv;
+  const poolMatch = await poofKit.poolMatch(currency);
+  const res = await poofKit.withdraw(
+    POOF_PRIVATE_KEY,
+    currency,
+    toBN(toWei(amount)),
+    toBN(0),
+    recipient || senderAccount,
+    relayerUrl
+  );
+  if (relayerUrl) {
+    const hash = res;
+    console.log(`Transaction: ${getExplorerTx(hash)}`);
+  } else {
+    const txo = res;
+    const params = {
+      from: senderAccount,
+      to: poolMatch.poolAddress,
+      data: txo.encodeABI(),
+      gasPrice,
+    };
+    // const gas = await web3.eth.estimateGas(params);
+    const tx = await web3.eth.sendTransaction({ ...params, gas });
+    console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+  }
+};
+
+const mint = async (argv) => {
+  await init();
+  const { currency, amount, recipient, relayerUrl } = argv;
+  const poolMatch = await poofKit.poolMatch(currency);
+  const res = await poofKit.withdraw(
+    POOF_PRIVATE_KEY,
+    currency,
+    toBN(0),
+    toBN(toWei(amount)),
+    recipient || senderAccount,
+    relayerUrl
+  );
+  if (relayerUrl) {
+    const hash = res;
+    console.log(`Transaction: ${getExplorerTx(hash)}`);
+  } else {
+    const txo = res;
+    const params = {
+      from: senderAccount,
+      to: poolMatch.poolAddress,
+      data: txo.encodeABI(),
+      gasPrice,
+    };
+    // const gas = await web3.eth.estimateGas(params);
+    const tx = await web3.eth.sendTransaction({ ...params, gas });
+    console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
+  }
+};
+
+const balances = async (argv) => {
+  await init(true);
+  const { currency } = argv;
+  const account = await poofKit.getLatestAccount(POOF_PRIVATE_KEY, currency);
+  const poolMatch = await poofKit.poolMatch(currency);
+  const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
+  console.log(
+    `Private balance: ${
+      account ? fromWei(account.amount.div(unitPerUnderlying)) : 0
+    } ${poolMatch.symbol}`
+  );
+  console.log(
+    `Private debt: ${account ? fromWei(account.debt) : 0} ${poolMatch.pSymbol}`
+  );
+
+  const balance = await poofKit.balance(currency, senderAccount);
+  const pToken = new web3.eth.Contract(
+    ERC20Artifact.abi,
+    poolMatch.poolAddress
+  );
+  const debt = await pToken.methods.balanceOf(senderAccount).call();
+  console.log(`Public balance: ${fromWei(balance)} ${poolMatch.symbol}`);
+  console.log(`Public debt: ${fromWei(debt)} ${poolMatch.pSymbol}`);
 };
 
 const getExplorerTx = (hash) => {
@@ -108,24 +263,7 @@ yargs
         describe: "The ERC20 symbol to approve",
       });
     },
-    async (argv) => {
-      await init();
-      const { currency } = argv;
-      const poolMatch = await poofKit.poolMatch(currency);
-      const approveTxo = await poofKit.approve(currency, toWei("100"));
-      const params = {
-        from: senderAccount,
-        to: poolMatch.tokenAddress,
-        data: approveTxo.encodeABI(),
-        gasPrice,
-      };
-      const gas = await web3.eth.estimateGas(params);
-      const tx = await web3.eth.sendTransaction({
-        ...params,
-        gas,
-      });
-      console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
-    }
+    approve
   )
   .command(
     "deposit <currency> <amount>",
@@ -140,32 +278,7 @@ yargs
         describe: "The amount to deposit",
       });
     },
-    async (argv) => {
-      await init();
-      const { currency, amount } = argv;
-      const poolMatch = await poofKit.poolMatch(currency);
-      const depositTxo = await poofKit.deposit(
-        POOF_PRIVATE_KEY,
-        currency,
-        toBN(toWei(amount)),
-        toBN(0)
-      );
-      const params = {
-        from: senderAccount,
-        to: poolMatch.poolAddress,
-        data: depositTxo.encodeABI(),
-        value: poolMatch.tokenAddress
-          ? 0
-          : toBN(toWei(amount)).mul(toBN(100001)).div(toBN(100000)),
-        gasPrice,
-      };
-      const gas = await web3.eth.estimateGas(params);
-      const tx = await web3.eth.sendTransaction({
-        ...params,
-        gas,
-      });
-      console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
-    }
+    deposit
   )
   .command(
     "burn <currency> <amount>",
@@ -180,29 +293,7 @@ yargs
         describe: "The amount to deposit",
       });
     },
-    async (argv) => {
-      await init();
-      const { currency, amount } = argv;
-      const poolMatch = await poofKit.poolMatch(currency);
-      const burnTxo = await poofKit.deposit(
-        POOF_PRIVATE_KEY,
-        currency,
-        toBN(0),
-        toBN(toWei(amount))
-      );
-      const params = {
-        from: senderAccount,
-        to: poolMatch.poolAddress,
-        data: burnTxo.encodeABI(),
-        gasPrice,
-      };
-      // const gas = await web3.eth.estimateGas(params);
-      const tx = await web3.eth.sendTransaction({
-        ...params,
-        gas: 2e6,
-      });
-      console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
-    }
+    burn
   )
   .command(
     "withdraw <currency> <amount> [recipient] [relayerUrl]",
@@ -225,34 +316,7 @@ yargs
         describe: "Optional relayer URL for withdrawal",
       });
     },
-    async (argv) => {
-      await init();
-      const { currency, amount, recipient, relayerUrl } = argv;
-      const poolMatch = await poofKit.poolMatch(currency);
-      const res = await poofKit.withdraw(
-        POOF_PRIVATE_KEY,
-        currency,
-        toBN(toWei(amount)),
-        toBN(0),
-        recipient || senderAccount,
-        relayerUrl
-      );
-      if (relayerUrl) {
-        const hash = res;
-        console.log(`Transaction: ${getExplorerTx(hash)}`);
-      } else {
-        const txo = res;
-        const params = {
-          from: senderAccount,
-          to: poolMatch.poolAddress,
-          data: txo.encodeABI(),
-          gasPrice,
-        };
-        const gas = await web3.eth.estimateGas(params);
-        const tx = await web3.eth.sendTransaction({ ...params, gas });
-        console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
-      }
-    }
+    withdraw
   )
   .command(
     "mint <currency> <amount> [recipient] [relayerUrl]",
@@ -275,34 +339,7 @@ yargs
         describe: "Optional relayer URL for mint",
       });
     },
-    async (argv) => {
-      await init();
-      const { currency, amount, recipient, relayerUrl } = argv;
-      const poolMatch = await poofKit.poolMatch(currency);
-      const res = await poofKit.withdraw(
-        POOF_PRIVATE_KEY,
-        currency,
-        toBN(0),
-        toBN(toWei(amount)),
-        recipient || senderAccount,
-        relayerUrl
-      );
-      if (relayerUrl) {
-        const hash = res;
-        console.log(`Transaction: ${getExplorerTx(hash)}`);
-      } else {
-        const txo = res;
-        const params = {
-          from: senderAccount,
-          to: poolMatch.poolAddress,
-          data: txo.encodeABI(),
-          gasPrice,
-        };
-        const gas = await web3.eth.estimateGas(params);
-        const tx = await web3.eth.sendTransaction({ ...params, gas });
-        console.log(`Transaction: ${getExplorerTx(tx.transactionHash)}`);
-      }
-    }
+    mint
   )
   .command(
     "account",
@@ -322,35 +359,7 @@ yargs
         describe: "The ERC20 symbol to check hidden balance of",
       });
     },
-    async (argv) => {
-      await init(true);
-      const { currency } = argv;
-      const account = await poofKit.getLatestAccount(
-        POOF_PRIVATE_KEY,
-        currency
-      );
-      const poolMatch = await poofKit.poolMatch(currency);
-      const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
-      console.log(
-        `Private balance: ${
-          account ? fromWei(account.amount.div(unitPerUnderlying)) : 0
-        } ${poolMatch.symbol}`
-      );
-      console.log(
-        `Private debt: ${account ? fromWei(account.debt) : 0} ${
-          poolMatch.pSymbol
-        }`
-      );
-
-      const balance = await poofKit.balance(currency, senderAccount);
-      const pToken = new web3.eth.Contract(
-        ERC20Artifact.abi,
-        poolMatch.poolAddress
-      );
-      const debt = await pToken.methods.balanceOf(senderAccount).call();
-      console.log(`Public balance: ${fromWei(balance)} ${poolMatch.symbol}`);
-      console.log(`Public debt: ${fromWei(debt)} ${poolMatch.pSymbol}`);
-    }
+    balances
   )
   .command(
     "verify [currency]",
@@ -369,9 +378,13 @@ yargs
     }
   )
   .command(
-    "test [relayerUrl]",
+    "test <currency> [relayerUrl]",
     "Deposit, withdraw",
     (yargs) => {
+      yargs.positional("currency", {
+        type: "string",
+        describe: "Currency to test",
+      });
       yargs.positional("relayerUrl", {
         type: "string",
         describe: "Optional relayer URL for withdrawal",
@@ -379,41 +392,29 @@ yargs
     },
     async (argv) => {
       await init();
-      const { relayerUrl } = argv;
-
-      const currency = "cUSD";
-      const amount = toBN("1000");
+      const { currency } = argv;
+      const poolMatch = await poofKit.poolMatch(currency);
 
       // Approve
-      const approveTxo = await poofKit.approve(currency, toWei("1000000"));
-      const approveTx = await approveTxo.send({ from: senderAccount });
-      console.log(`Approve: ${getExplorerTx(approveTx.transactionHash)}`);
-
-      // Deposit
-      const depositTxo = await poofKit.deposit(
-        POOF_PRIVATE_KEY,
-        currency,
-        amount
-      );
-      const depositTx = await depositTxo.send({ from: senderAccount });
-      console.log(`Deposit: ${getExplorerTx(depositTx.transactionHash)}`);
-
-      // Withdraw
-      const res = await poofKit.withdraw(
-        POOF_PRIVATE_KEY,
-        currency,
-        amount,
-        senderAccount,
-        relayerUrl
-      );
-      if (relayerUrl) {
-        const hash = res;
-        console.log(`Withdraw: ${getExplorerTx(hash)}`);
-      } else {
-        const txo = res;
-        const tx = await txo.send({ from: senderAccount });
-        console.log(`Withdraw: ${getExplorerTx(tx.transactionHash)}`);
+      if (poolMatch.tokenAddress) {
+        console.log("Approving...");
+        await approve(argv);
       }
+
+      const amount1 = "0.01";
+      const amount2 = "0.001";
+
+      console.log("Depositing...");
+      await deposit({ ...argv, amount: amount1 });
+      await balances(argv);
+      console.log("Minting...");
+      await mint({ ...argv, amount: amount2 });
+      await balances(argv);
+      console.log("Burning...");
+      await burn({ ...argv, amount: amount2 });
+      console.log("Withdrawing...");
+      await withdraw({ ...argv, amount: amount1 });
+      await balances(argv);
     }
   )
   .help().argv;
