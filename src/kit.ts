@@ -37,7 +37,6 @@ export type ProvingKeys = {
 };
 
 export class PoofKit {
-  private poof: Contract;
   private controller: Controller;
   private provingKeys: ProvingKeys = {};
   private getSnarkJs: () => any;
@@ -46,13 +45,6 @@ export class PoofKit {
 
   initialize(getSnarkJs: () => any) {
     this.getSnarkJs = getSnarkJs;
-  }
-
-  async poofEvents(eventName: string, fromBlock: number): Promise<EventData[]> {
-    return await this.poof.getPastEvents(eventName, {
-      fromBlock,
-      toBlock: "latest",
-    });
   }
 
   initializeDeposit(
