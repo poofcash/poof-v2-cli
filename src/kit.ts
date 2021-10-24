@@ -1,8 +1,8 @@
 import { toBN, AbiItem } from "web3-utils";
-import { Contract, EventData } from "web3-eth-contract";
+import { EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
-import { calculateFee, unpackEncryptedMessage } from "./utils";
+import { calculateFee, getPastEvents, unpackEncryptedMessage } from "./utils";
 import axios from "axios";
 import { Controller } from "./controller";
 import { Account } from "./account";
@@ -196,12 +196,13 @@ export class PoofKit {
         currency,
         accountEvents
       );
-      const { proofs, args } = await this.controller.deposit(poof, {
+      const { proofs, args } = await this.controller.deposit({
         account: account || new Account(),
         publicKey,
         amount: amountInUnits,
         debt,
         unitPerUnderlying,
+        accountCommitments: await this.fetchAccountCommitments(poof),
       });
       return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
     }
@@ -276,7 +277,7 @@ export class PoofKit {
         relayer = rewardAccount;
       }
 
-      const { proofs, args } = await this.controller.withdraw(poof, {
+      const { proofs, args } = await this.controller.withdraw({
         account: latestAccount,
         amount: amountInUnits,
         debt,
@@ -285,6 +286,7 @@ export class PoofKit {
         publicKey,
         fee,
         relayer,
+        accountCommitments: await this.fetchAccountCommitments(poof),
       });
       const isWithdraw = debt.eq(toBN(0));
       if (relayerURL) {
@@ -351,10 +353,12 @@ export class PoofKit {
       ) as unknown as Poof;
       accountEvents =
         accountEvents ||
-        (await poof.getPastEvents("NewAccount", {
-          fromBlock: 0,
-          toBlock: "latest",
-        }));
+        (await getPastEvents(
+          poof,
+          "NewAccount",
+          0,
+          await this.web3.eth.getBlockNumber()
+        ));
       // Sort events descending by time and stop at the first account that decrypts
       const event = accountEvents
         .sort((a, b) => b.blockNumber - a.blockNumber)
@@ -377,6 +381,18 @@ export class PoofKit {
       );
     }
     return null;
+  }
+
+  async fetchAccountCommitments(poof: Poof) {
+    const events = await getPastEvents(
+      poof,
+      "NewAccount",
+      0,
+      await this.web3.eth.getBlockNumber()
+    );
+    return events
+      .sort((a, b) => a.returnValues.index - b.returnValues.index)
+      .map((e) => toBN(e.returnValues.commitment));
   }
 
   async verify(currency: string) {

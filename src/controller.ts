@@ -20,7 +20,7 @@ type DepositParams = {
   amount: BN;
   debt: BN;
   unitPerUnderlying: BN;
-  accountCommitments?: BN[];
+  accountCommitments: BN[];
 };
 
 type WithdrawParams = {
@@ -34,22 +34,12 @@ type WithdrawParams = {
   publicKey: string;
   fee: BN;
   relayer: 0 | string;
-  accountCommitments?: BN[];
+  accountCommitments: BN[];
 };
 
 type ProofDep = {
   getWasm: () => Promise<Uint8Array>;
   getZkey: () => Promise<Uint8Array>;
-};
-
-const fetchAccountCommitments = async (poof: Poof) => {
-  const events = await poof.getPastEvents("NewAccount", {
-    fromBlock: 0,
-    toBlock: "latest",
-  });
-  return events
-    .sort((a, b) => a.returnValues.index - b.returnValues.index)
-    .map((e) => toBN(e.returnValues.commitment));
 };
 
 export class Controller {
@@ -100,17 +90,14 @@ export class Controller {
     );
   }
 
-  async deposit(
-    poof: Poof,
-    {
-      account,
-      amount,
-      debt,
-      unitPerUnderlying,
-      publicKey,
-      accountCommitments,
-    }: DepositParams
-  ) {
+  async deposit({
+    account,
+    amount,
+    debt,
+    unitPerUnderlying,
+    publicKey,
+    accountCommitments,
+  }: DepositParams) {
     const newAmount = account.amount.add(amount);
     const newDebt = account.debt.sub(debt);
     const newAccount = new Account({
@@ -118,8 +105,6 @@ export class Controller {
       debt: newDebt.toString(),
     });
 
-    accountCommitments =
-      accountCommitments || (await fetchAccountCommitments(poof));
     const accountTree = new MerkleTree(
       this.merkleTreeHeight,
       accountCommitments,
@@ -237,19 +222,17 @@ export class Controller {
     };
   }
 
-  async withdraw(
-    poof: Poof,
-    {
-      account,
-      amount: withdrawAmount,
-      debt,
-      unitPerUnderlying,
-      recipient,
-      publicKey,
-      fee = toBN(0),
-      relayer = 0,
-    }: WithdrawParams
-  ) {
+  async withdraw({
+    account,
+    amount: withdrawAmount,
+    debt,
+    unitPerUnderlying,
+    recipient,
+    publicKey,
+    fee = toBN(0),
+    relayer = 0,
+    accountCommitments,
+  }: WithdrawParams) {
     const amount = withdrawAmount.add(fee);
     const newAmount = account.amount.sub(amount);
     const newDebt = account.debt.add(debt);
@@ -258,7 +241,6 @@ export class Controller {
       debt: newDebt.toString(),
     });
 
-    const accountCommitments = await fetchAccountCommitments(poof);
     const accountTree = new MerkleTree(
       this.merkleTreeHeight,
       accountCommitments,
@@ -380,48 +362,6 @@ export class Controller {
       proofs,
       args,
       account: newAccount,
-    };
-  }
-
-  async treeUpdate(poof: Poof, commitment: any, accountTree = null) {
-    if (!accountTree) {
-      const accountCommitments = await fetchAccountCommitments(poof);
-      accountTree = new MerkleTree(this.merkleTreeHeight, accountCommitments, {
-        hashFunction: poseidonHash2,
-      });
-    }
-    const accountTreeUpdate = this._updateTree(accountTree, commitment);
-
-    const input = {
-      oldRoot: accountTreeUpdate.oldRoot,
-      newRoot: accountTreeUpdate.newRoot,
-      leaf: commitment,
-      pathIndices: accountTreeUpdate.pathIndices,
-      pathElements: accountTreeUpdate.pathElements,
-    };
-
-    const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
-      utils.stringifyBigInts(input),
-      await this.provingKeys.getTreeUpdateWasm(),
-      await this.provingKeys.getTreeUpdateZkey()
-    );
-    const [proof] = (
-      await this.getSnarkJs().plonk.exportSolidityCallData(
-        utils.unstringifyBigInts(proofData),
-        []
-      )
-    ).split(",");
-
-    const args = {
-      oldRoot: toFixedHex(input.oldRoot),
-      newRoot: toFixedHex(input.newRoot),
-      leaf: toFixedHex(input.leaf),
-      pathIndices: toFixedHex(input.pathIndices),
-    };
-
-    return {
-      proof,
-      args,
     };
   }
 }

@@ -223,3 +223,28 @@ export const getProofDeps = async (
     })
   );
 };
+
+export const getPastEvents = async (
+  contract: any,
+  eventName: string,
+  fromBlock: number,
+  toBlock: number
+) => {
+  const events = [];
+  const startBlock = fromBlock || 0;
+  const bucketSize = 100_000;
+  for (
+    let i = Math.floor(startBlock / bucketSize);
+    i < Math.ceil(toBlock / bucketSize);
+    i++
+  ) {
+    events.push(
+      ...(await contract.getPastEvents(eventName, {
+        fromBlock: Math.max(i * bucketSize, startBlock),
+        toBlock: Math.min((i + 1) * bucketSize, toBlock) - 1,
+      }))
+    );
+  }
+
+  return events;
+};
