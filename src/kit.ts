@@ -2,7 +2,12 @@ import { toBN, AbiItem } from "web3-utils";
 import { EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
-import { calculateFee, getPastEvents, unpackEncryptedMessage } from "./utils";
+import {
+  calculateFee,
+  getPastEvents,
+  toFixedHex,
+  unpackEncryptedMessage,
+} from "./utils";
 import axios from "axios";
 import { Controller } from "./controller";
 import { Account } from "./account";
@@ -381,10 +386,26 @@ export class PoofKit {
       if (!event) {
         return undefined;
       }
-      return Account.decrypt(
+      const eventCommitment = event.returnValues.commitment;
+      let account = Account.decrypt(
         privateKey,
         unpackEncryptedMessage(event.returnValues.encryptedAccount)
       );
+      let accountCommitment = toFixedHex(account.commitment);
+
+      if (accountCommitment !== eventCommitment) {
+        console.info(
+          "Commitment mismatch. Trying to update with a negative debt"
+        );
+        account = new Account({
+          amount: account.amount.toString(),
+          debt: account.debt.mul(toBN(-1)).toString(),
+          nullifier: account.nullifier.toString(),
+          secret: account.secret.toString(),
+        });
+        accountCommitment = toFixedHex(account.commitment);
+      }
+      return account;
     }
     return null;
   }
