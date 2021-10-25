@@ -181,32 +181,35 @@ export class PoofKit {
     }
 
     const poolMatch = await this.poolMatch(currency);
-    if (poolMatch) {
-      const poof = new this.web3.eth.Contract(
-        PoofArtifact.abi as AbiItem[],
-        poolMatch.poolAddress
-      ) as unknown as Poof;
-      const unitPerUnderlying = toBN(
-        await poof.methods.unitPerUnderlying().call()
+    if (!poolMatch) {
+      throw new Error(
+        `Could not find a matching pool for ${currency}. Current network ID: ${await this.web3.eth.getChainId()}`
       );
-      const amountInUnits = amount.mul(unitPerUnderlying);
-      const publicKey = getEncryptionPublicKey(privateKey);
-      const account = await this.getLatestAccount(
-        privateKey,
-        currency,
-        accountEvents
-      );
-      const { proofs, args } = await this.controller.deposit({
-        account: account || new Account(),
-        publicKey,
-        amount: amountInUnits,
-        debt,
-        unitPerUnderlying,
-        accountCommitments: await this.fetchAccountCommitments(currency),
-      });
-      return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
     }
-    return null;
+
+    const poof = new this.web3.eth.Contract(
+      PoofArtifact.abi as AbiItem[],
+      poolMatch.poolAddress
+    ) as unknown as Poof;
+    const unitPerUnderlying = toBN(
+      await poof.methods.unitPerUnderlying().call()
+    );
+    const amountInUnits = amount.mul(unitPerUnderlying);
+    const publicKey = getEncryptionPublicKey(privateKey);
+    const account = await this.getLatestAccount(
+      privateKey,
+      currency,
+      accountEvents
+    );
+    const { proofs, args } = await this.controller.deposit({
+      account: account || new Account(),
+      publicKey,
+      amount: amountInUnits,
+      debt,
+      unitPerUnderlying,
+      accountCommitments: await this.fetchAccountCommitments(currency),
+    });
+    return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
   }
 
   async withdraw(
@@ -230,102 +233,105 @@ export class PoofKit {
     }
 
     const poolMatch = await this.poolMatch(currency);
-    if (poolMatch) {
-      const { poolAddress } = poolMatch;
-      const poof = new this.web3.eth.Contract(
-        PoofArtifact.abi as AbiItem[],
-        poolAddress
-      ) as unknown as Poof;
-      const unitPerUnderlying = toBN(
-        await poof.methods.unitPerUnderlying().call()
+    if (!poolMatch) {
+      throw new Error(
+        `Could not find a matching pool for ${currency}. Current network ID: ${await this.web3.eth.getChainId()}`
       );
-      const amountInUnits = amount.mul(unitPerUnderlying);
-      const latestAccount = await this.getLatestAccount(
-        privateKey,
-        currency,
-        accountEvents
-      );
-      if (!latestAccount) {
-        throw new Error("No previous account found");
-      }
-      const publicKey = getEncryptionPublicKey(privateKey);
-      let fee = toBN(0);
-      let relayer: string;
-      if (relayerURL) {
-        const relayerStatus = await axios.get(relayerURL + "/status");
-        const { celoPrices, rewardAccount, poofServiceFee, gasPrices } =
-          relayerStatus.data;
-        const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
-        const gasPrice = Number(gasPrices["min"]);
-        // Fee can come from amount or debt
-        const feeFrom = amountInUnits.eq(toBN(0))
-          ? debt.mul(unitPerUnderlying)
-          : amountInUnits;
-        // Fee with 0.1% buffer
-        fee = calculateFee(
-          feeFrom,
-          Number(currencyCeloPrice),
-          poofServiceFee,
-          gasPrice,
-          2e6
-        )
-          .mul(toBN(1001))
-          .div(toBN(1000));
-        if (fee.gt(feeFrom)) {
-          throw new Error("Fee is higher than the `feeFrom`");
-        }
-        relayer = rewardAccount;
-      }
+    }
 
-      const { proofs, args } = await this.controller.withdraw({
-        account: latestAccount,
-        amount: amountInUnits,
-        debt,
-        unitPerUnderlying,
-        recipient,
-        publicKey,
-        fee,
-        relayer,
-        accountCommitments: await this.fetchAccountCommitments(currency),
-      });
-      const isWithdraw = debt.eq(toBN(0));
-      if (relayerURL) {
-        console.info("Sending withdraw transaction through relay");
-        try {
-          const endpoint = isWithdraw ? "/v3/withdraw" : "/v3/mint";
-          const relay = await axios.post(relayerURL + endpoint, {
-            contract: poolAddress,
-            proofs,
-            args,
-          });
-          let tries = TRIES;
-          while (tries > 0) {
-            console.info(`Trying to fetch transaction hash, try #${tries}`);
-            const job = await axios.get(
-              relayerURL + `/v1/jobs/${relay.data.id}`
+    const { poolAddress } = poolMatch;
+    const poof = new this.web3.eth.Contract(
+      PoofArtifact.abi as AbiItem[],
+      poolAddress
+    ) as unknown as Poof;
+    const unitPerUnderlying = toBN(
+      await poof.methods.unitPerUnderlying().call()
+    );
+    const amountInUnits = amount.mul(unitPerUnderlying);
+    const latestAccount = await this.getLatestAccount(
+      privateKey,
+      currency,
+      accountEvents
+    );
+    if (!latestAccount) {
+      throw new Error("No previous account found");
+    }
+    const publicKey = getEncryptionPublicKey(privateKey);
+    let fee = toBN(0);
+    let relayer: string;
+    if (relayerURL) {
+      const relayerStatus = await axios.get(relayerURL + "/status");
+      const { celoPrices, rewardAccount, poofServiceFee, gasPrices } =
+        relayerStatus.data;
+      const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
+      const gasPrice = Number(gasPrices["min"]);
+      // Fee can come from amount or debt
+      const feeFrom = amountInUnits.eq(toBN(0))
+        ? debt.mul(unitPerUnderlying)
+        : amountInUnits;
+      // Fee with 0.1% buffer
+      fee = calculateFee(
+        feeFrom,
+        Number(currencyCeloPrice),
+        poofServiceFee,
+        gasPrice,
+        2e6
+      )
+        .mul(toBN(1001))
+        .div(toBN(1000));
+      if (fee.gt(feeFrom)) {
+        throw new Error("Fee is higher than the `feeFrom`");
+      }
+      relayer = rewardAccount;
+    }
+
+    const { proofs, args } = await this.controller.withdraw({
+      account: latestAccount,
+      amount: amountInUnits,
+      debt,
+      unitPerUnderlying,
+      recipient,
+      publicKey,
+      fee,
+      relayer,
+      accountCommitments: await this.fetchAccountCommitments(currency),
+    });
+    const isWithdraw = debt.eq(toBN(0));
+    if (relayerURL) {
+      console.info("Sending withdraw transaction through relay");
+      try {
+        const endpoint = isWithdraw ? "/v3/withdraw" : "/v3/mint";
+        const relay = await axios.post(relayerURL + endpoint, {
+          contract: poolAddress,
+          proofs,
+          args,
+        });
+        let tries = TRIES;
+        while (tries > 0) {
+          console.info(`Trying to fetch transaction hash, try #${tries}`);
+          const job = await axios.get(relayerURL + `/v1/jobs/${relay.data.id}`);
+          if (job.data.txHash) {
+            console.info(
+              `Transaction submitted through the relay. The transaction hash is ${job.data.txHash}`
             );
-            if (job.data.txHash) {
-              console.info(
-                `Transaction submitted through the relay. The transaction hash is ${job.data.txHash}`
-              );
-              return job.data.txHash;
-            } else {
-              tries -= 1;
-              await new Promise((resolve) => setTimeout(resolve, TRY_DELAY));
-            }
-          }
-        } catch (e) {
-          if (e.response) {
-            console.error(e.response.data.error);
+            return job.data.txHash;
           } else {
-            console.error(e.message);
+            tries -= 1;
+            await new Promise((resolve) => setTimeout(resolve, TRY_DELAY));
           }
         }
-      } else {
-        return poof.methods[isWithdraw ? "withdraw" : "mint"](proofs, args);
+        throw new Error(
+          "Timed out. Did not get a transaction hash from the relayer."
+        );
+      } catch (e) {
+        if (e.response) {
+          console.error(e.response.data.error);
+        } else {
+          console.error(e.message);
+        }
       }
     }
-    return null;
+    return poof.methods[isWithdraw ? "withdraw" : "mint"](proofs, args);
   }
 
   async unitPerUnderlying(currency: string) {
