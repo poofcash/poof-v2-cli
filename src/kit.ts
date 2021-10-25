@@ -177,7 +177,7 @@ export class PoofKit {
       !this.provingKeys.getOutputRootWasm ||
       !this.provingKeys.getOutputRootZkey
     ) {
-      return null;
+      throw new Error("Proof dependency getters not found");
     }
 
     const poolMatch = await this.poolMatch(currency);
@@ -219,14 +219,14 @@ export class PoofKit {
     accountEvents?: EventData[]
   ) {
     if (
-      !this.provingKeys.getDepositWasm ||
-      !this.provingKeys.getDepositZkey ||
+      !this.provingKeys.getWithdrawWasm ||
+      !this.provingKeys.getWithdrawZkey ||
       !this.provingKeys.getInputRootWasm ||
       !this.provingKeys.getInputRootZkey ||
       !this.provingKeys.getOutputRootWasm ||
       !this.provingKeys.getOutputRootZkey
     ) {
-      return null;
+      throw new Error("Proof dependency getters not found");
     }
 
     const poolMatch = await this.poolMatch(currency);
