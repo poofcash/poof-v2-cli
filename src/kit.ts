@@ -387,23 +387,22 @@ export class PoofKit {
         return undefined;
       }
       const eventCommitment = event.returnValues.commitment;
-      let account = Account.decrypt(
+      const account = Account.decrypt(
         privateKey,
         unpackEncryptedMessage(event.returnValues.encryptedAccount)
       );
-      let accountCommitment = toFixedHex(account.commitment);
+      const accountCommitment = toFixedHex(account.commitment);
 
       if (accountCommitment !== eventCommitment) {
         console.info(
           "Commitment mismatch. Trying to update with a negative debt"
         );
-        account = new Account({
+        return new Account({
           amount: account.amount.toString(),
           debt: account.debt.mul(toBN(-1)).toString(),
           nullifier: account.nullifier.toString(),
           secret: account.secret.toString(),
         });
-        accountCommitment = toFixedHex(account.commitment);
       }
       return account;
     }
