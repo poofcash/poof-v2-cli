@@ -114,4 +114,22 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       creationBlock: 6053349,
     },
   ],
+  42: [
+    {
+      poolAddress: "0xD8761DD6c7cB54febD33adD699F5E4440b62E01B", // 0xbd5c0877b524eEA37B48E67C012bcE1916EA3F97
+      symbol: "ETH",
+      pSymbol: "pETH",
+      decimals: 18,
+      creationBlock: 27944314,
+    },
+  ],
+  1: [
+    {
+      poolAddress: "0xd3020655F6431C9aF80fdAab66Da8Ac86abE365E", // 0x7580345EBC7DEFD34fC886CbD5Ffb1aDEbf2f6D6
+      symbol: "ETH",
+      pSymbol: "pETH",
+      decimals: 18,
+      creationBlock: 6053349,
+    },
+  ],
 };

@@ -29,6 +29,8 @@ const init = async (skipDeps) => {
     137: "https://polygonscan.com",
     43113: "https://cchain.explorer.avax-test.network",
     43114: "https://cchain.explorer.avax.network",
+    42: "https://kovan.etherscan.io",
+    1: "https://etherscan.io",
   }[netId];
   gasPrice = {
     44787: toWei("0.5", "gwei"),
@@ -39,6 +41,8 @@ const init = async (skipDeps) => {
     137: toWei("60", "gwei"),
     43113: toWei("30", "gwei"),
     43114: toWei("30", "gwei"),
+    42: toWei("2", "gwei"),
+    1: toWei("90", "gwei"),
   }[netId];
 
   if (!skipDeps && !depsInitialized) {
