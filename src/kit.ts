@@ -351,6 +351,55 @@ export class PoofKit {
     return null;
   }
 
+  async getAccountHistory(
+    privateKey: string,
+    currency: string,
+    accountEvents?: EventData[]
+  ) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi as AbiItem[],
+        poolMatch.poolAddress
+      ) as unknown as Poof;
+      accountEvents =
+        accountEvents ||
+        (await getPastEvents(
+          poof,
+          "NewAccount",
+          poolMatch.creationBlock,
+          await this.web3.eth.getBlockNumber()
+        ));
+      // Sort events descending by time and filter accounts that successfully decrypt
+      const history = accountEvents
+        .sort((a, b) => b.blockNumber - a.blockNumber)
+        .filter((e) => {
+          try {
+            Account.decrypt(
+              privateKey,
+              unpackEncryptedMessage(e.returnValues.encryptedAccount)
+            );
+            return true;
+          } catch (e) {}
+          return false;
+        })
+        .map((e) => {
+          const account = Account.decrypt(
+            privateKey,
+            unpackEncryptedMessage(e.returnValues.encryptedAccount)
+          );
+          const transactionHash = e.transactionHash;
+          return {
+            account,
+            transactionHash,
+          };
+        });
+
+      return history;
+    }
+    return null;
+  }
+
   async getLatestAccount(
     privateKey: string,
     currency: string,
