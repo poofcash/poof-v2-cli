@@ -129,7 +129,7 @@ export const deployments: Record<string | number, Array<CurrencyEntry>> = {
       symbol: "ETH",
       pSymbol: "pETH",
       decimals: 18,
-      creationBlock: 6053349,
+      creationBlock: 13487348,
     },
   ],
 };
