@@ -2,7 +2,12 @@ import { toBN, AbiItem } from "web3-utils";
 import { EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
-import { calculateFee, getPastEvents, unpackEncryptedMessage } from "./utils";
+import {
+  calculateFee,
+  getPastEvents,
+  toFixedHex,
+  unpackEncryptedMessage,
+} from "./utils";
 import axios from "axios";
 import { Controller } from "./controller";
 import { Account } from "./account";
@@ -381,6 +386,16 @@ export class PoofKit {
       if (!event) {
         return undefined;
       }
+      console.info(
+        "Commitment comparison",
+        event.returnValues.commitment,
+        toFixedHex(
+          Account.decrypt(
+            privateKey,
+            unpackEncryptedMessage(event.returnValues.encryptedAccount)
+          ).commitment
+        )
+      );
       return Account.decrypt(
         privateKey,
         unpackEncryptedMessage(event.returnValues.encryptedAccount)
