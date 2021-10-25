@@ -245,6 +245,7 @@ export const getPastEvents = async (
       }))
     );
   }
+  console.info(`Fetched ${events.length} ${eventName} events`);
 
   return events;
 };
