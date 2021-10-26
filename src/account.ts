@@ -49,6 +49,9 @@ export class Account {
     if (this.amount.lt(toBN(0))) {
       throw new Error("Cannot create an account with negative amount");
     }
+    if (this.debt.lt(toBN(0))) {
+      throw new Error("Cannot create an account with a negative debt");
+    }
   }
 
   encrypt(pubkey: string) {
