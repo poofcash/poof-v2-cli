@@ -100,6 +100,9 @@ export class Controller {
   }: DepositParams) {
     const newAmount = account.amount.add(amount);
     const newDebt = account.debt.sub(debt);
+    if (newDebt.lt(toBN(0))) {
+      throw new Error("Resulting debt is < 0");
+    }
     const newAccount = new Account({
       amount: newAmount.toString(),
       debt: newDebt.toString(),
