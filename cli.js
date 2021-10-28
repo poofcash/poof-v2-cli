@@ -14,7 +14,7 @@ const web3 = new Web3(RPC_URL);
 const { address: senderAccount } = web3.eth.accounts.wallet.add(PRIVATE_KEY);
 
 let poofKit, netId, explorer, gasPrice, depsInitialized;
-const gas = 2e6;
+const gas = 1.7e6;
 
 const init = async (skipDeps) => {
   netId = await web3.eth.getChainId();
@@ -348,6 +348,32 @@ yargs
       });
     },
     mint
+  )
+  .command(
+    "fee <currency> <amount> <relayerUrl>",
+    "Get fee",
+    (yargs) => {
+      yargs.positional("currency", {
+        type: "string",
+        describe: "The ERC20 symbol to mint",
+      });
+      yargs.positional("amount", {
+        type: "string",
+        describe: "The amount to mint",
+      });
+      yargs.positional("relayerUrl", {
+        type: "string",
+        describe: "Relayer url",
+      });
+    },
+    async (argv) => {
+      const { currency, amount, relayerUrl } = argv;
+      await init();
+      const fee = fromWei(
+        await poofKit.getRelayerFee(relayerUrl, toBN(toWei(amount)), currency)
+      );
+      console.log(`Fee in ~wei: ${fee}`);
+    }
   )
   .command(
     "account",

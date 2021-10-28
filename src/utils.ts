@@ -159,14 +159,15 @@ export const calculateFee = (
   currencyCeloPrice: number,
   poofServiceFee: number,
   gasPrice: number,
-  gasLimit: number
+  gasLimit: number,
+  unitPerUnderlying?: BN
 ) => {
   if (currencyCeloPrice <= 0) {
     throw new Error("Invalid `currencyCeloPrice`");
   }
   // NOTE: Decimals should be incorporated in `currencyCeloPrice`. E.g. if TT has 8 decimals, and 1 CELO = 1 TT,
   // Then `currencyCeloPrice` should be 1e10
-  const PRECISION = 10000;
+  const PRECISION = 1000000;
   const relayerFee = amount
     .mul(toBN(poofServiceFee * PRECISION))
     .div(toBN(PRECISION))
@@ -176,12 +177,15 @@ export const calculateFee = (
     toBN(gasLimit.toString())
   );
 
-  const gasInCurrency =
+  let gasInCurrency =
     currencyCeloPrice > 1
       ? gasInWei.div(toBN(currencyCeloPrice))
       : gasInWei
-          .div(toBN(Math.ceil(currencyCeloPrice * PRECISION)))
-          .mul(toBN(PRECISION));
+          .mul(toBN(PRECISION))
+          .div(toBN(Math.ceil(currencyCeloPrice * PRECISION)));
+  if (unitPerUnderlying) {
+    gasInCurrency = gasInCurrency.mul(unitPerUnderlying);
+  }
 
   return gasInCurrency.add(relayerFee);
 };

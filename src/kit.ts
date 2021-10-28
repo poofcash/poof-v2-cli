@@ -1,4 +1,4 @@
-import { toBN, AbiItem } from "web3-utils";
+import { toBN, AbiItem, fromWei } from "web3-utils";
 import { EventData } from "web3-eth-contract";
 import ERC20Artifact from "./artifacts/ERC20.json";
 import PoofArtifact from "./artifacts/Poof.json";
@@ -280,7 +280,8 @@ export class PoofKit {
         Number(currencyCeloPrice),
         poofServiceFee,
         gasPrice,
-        2e6
+        2e6,
+        unitPerUnderlying
       )
         .mul(toBN(1001))
         .div(toBN(1000));
@@ -337,6 +338,38 @@ export class PoofKit {
       }
     }
     return poof.methods[isWithdraw ? "withdraw" : "mint"](proofs, args);
+  }
+
+  async getRelayerFee(relayerURL: string, amount: BN, currency: string) {
+    const poolMatch = await this.poolMatch(currency);
+    if (poolMatch) {
+      const { poolAddress } = poolMatch;
+      const poof = new this.web3.eth.Contract(
+        PoofArtifact.abi as AbiItem[],
+        poolAddress
+      ) as unknown as Poof;
+      const unitPerUnderlying = toBN(
+        await poof.methods.unitPerUnderlying().call()
+      );
+      const amountInUnits = amount.mul(unitPerUnderlying);
+      const relayerStatus = await axios.get(relayerURL + "/status");
+      const { celoPrices, poofServiceFee, gasPrices } = relayerStatus.data;
+      const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
+      const gasPrice = Number(gasPrices["min"]);
+      // const gasPrice = Number(0.2);
+      // Fee can come from amount or debt
+      // Fee with 0.1% buffer
+      return calculateFee(
+        amountInUnits,
+        Number(currencyCeloPrice),
+        poofServiceFee,
+        gasPrice,
+        2e6,
+        unitPerUnderlying
+      )
+        .mul(toBN(1001))
+        .div(toBN(1000));
+    }
   }
 
   async unitPerUnderlying(currency: string) {
