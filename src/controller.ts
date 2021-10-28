@@ -364,4 +364,40 @@ export class Controller {
       account: newAccount,
     };
   }
+
+  async treeUpdate(commitment: any, accountTree: any) {
+    const accountTreeUpdate = this._updateTree(accountTree, commitment);
+
+    const input = {
+      oldRoot: accountTreeUpdate.oldRoot,
+      newRoot: accountTreeUpdate.newRoot,
+      leaf: commitment,
+      pathIndices: accountTreeUpdate.pathIndices,
+      pathElements: accountTreeUpdate.pathElements,
+    };
+
+    const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
+      utils.stringifyBigInts(input),
+      this.provingKeys.getTreeUpdateWasm(),
+      this.provingKeys.getTreeUpdateZkey()
+    );
+    const [proof] = (
+      await this.getSnarkJs().plonk.exportSolidityCallData(
+        utils.unstringifyBigInts(proofData),
+        []
+      )
+    ).split(",");
+
+    const args = {
+      oldRoot: toFixedHex(input.oldRoot),
+      newRoot: toFixedHex(input.newRoot),
+      leaf: toFixedHex(input.leaf),
+      pathIndices: toFixedHex(input.pathIndices),
+    };
+
+    return {
+      proof,
+      args,
+    };
+  }
 }
