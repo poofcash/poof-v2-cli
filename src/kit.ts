@@ -280,7 +280,7 @@ export class PoofKit {
         Number(currencyCeloPrice),
         poofServiceFee,
         gasPrice,
-        2e6,
+        3e6,
         unitPerUnderlying
       )
         .mul(toBN(1001))
@@ -361,7 +361,7 @@ export class PoofKit {
         Number(currencyCeloPrice),
         poofServiceFee,
         gasPrice,
-        2e6,
+        3e6,
         unitPerUnderlying
       )
         .mul(toBN(1001))
