@@ -285,9 +285,6 @@ export class PoofKit {
       )
         .mul(toBN(1001))
         .div(toBN(1000));
-      if (fee.gt(feeFrom)) {
-        throw new Error("Fee is higher than the `feeFrom`");
-      }
       relayer = rewardAccount;
     }
 
