@@ -196,6 +196,14 @@ export class PoofKit {
       PoofArtifact.abi as AbiItem[],
       poolMatch.poolAddress
     ) as unknown as Poof;
+    accountEvents =
+      accountEvents ||
+      (await getPastEvents(
+        poof,
+        "NewAccount",
+        poolMatch.creationBlock,
+        await this.web3.eth.getBlockNumber()
+      ));
     const unitPerUnderlying = toBN(
       await poof.methods.unitPerUnderlying().call()
     );
@@ -212,7 +220,9 @@ export class PoofKit {
       amount: amountInUnits,
       debt,
       unitPerUnderlying,
-      accountCommitments: await this.fetchAccountCommitments(currency),
+      accountCommitments: accountEvents
+        .sort((a, b) => a.returnValues.index - b.returnValues.index)
+        .map((e) => toBN(e.returnValues.commitment)),
     });
     return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
   }
@@ -249,6 +259,14 @@ export class PoofKit {
       PoofArtifact.abi as AbiItem[],
       poolAddress
     ) as unknown as Poof;
+    accountEvents =
+      accountEvents ||
+      (await getPastEvents(
+        poof,
+        "NewAccount",
+        poolMatch.creationBlock,
+        await this.web3.eth.getBlockNumber()
+      ));
     const unitPerUnderlying = toBN(
       await poof.methods.unitPerUnderlying().call()
     );
@@ -297,7 +315,9 @@ export class PoofKit {
       publicKey,
       fee,
       relayer,
-      accountCommitments: await this.fetchAccountCommitments(currency),
+      accountCommitments: accountEvents
+        .sort((a, b) => a.returnValues.index - b.returnValues.index)
+        .map((e) => toBN(e.returnValues.commitment)),
     });
     const isWithdraw = debt.eq(toBN(0));
     if (relayerURL) {
@@ -484,26 +504,6 @@ export class PoofKit {
         });
       }
       return account;
-    }
-    return null;
-  }
-
-  async fetchAccountCommitments(currency: string) {
-    const poolMatch = await this.poolMatch(currency);
-    if (poolMatch) {
-      const poof = new this.web3.eth.Contract(
-        PoofArtifact.abi,
-        poolMatch.poolAddress
-      );
-      const events = await getPastEvents(
-        poof,
-        "NewAccount",
-        poolMatch.creationBlock,
-        await this.web3.eth.getBlockNumber()
-      );
-      return events
-        .sort((a, b) => a.returnValues.index - b.returnValues.index)
-        .map((e) => toBN(e.returnValues.commitment));
     }
     return null;
   }
