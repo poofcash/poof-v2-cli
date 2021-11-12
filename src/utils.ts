@@ -232,7 +232,8 @@ export const getPastEvents = async (
   contract: any,
   eventName: string,
   fromBlock: number,
-  toBlock: number
+  toBlock: number,
+  filter?: any
 ) => {
   const events = [];
   const startBlock = fromBlock || 0;
@@ -246,6 +247,7 @@ export const getPastEvents = async (
       ...(await contract.getPastEvents(eventName, {
         fromBlock: Math.max(i * bucketSize, startBlock),
         toBlock: Math.min((i + 1) * bucketSize, toBlock) - 1,
+        filter,
       }))
     );
   }
