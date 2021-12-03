@@ -53,8 +53,8 @@ export class PoofKit {
   }
 
   initializeDeposit(
-    getDepositWasm: () => Promise<Uint8Array>,
-    getDepositZkey: () => Promise<Uint8Array>
+    getDepositWasm: (provingSystem: ProvingSystem) => Promise<Uint8Array>,
+    getDepositZkey: (provingSystem: ProvingSystem) => Promise<Uint8Array>
   ) {
     this.provingKeys.getDepositWasm = getDepositWasm;
     this.provingKeys.getDepositZkey = getDepositZkey;
@@ -65,8 +65,8 @@ export class PoofKit {
   }
 
   initializeInputRoot(
-    getInputRootWasm: () => Promise<Uint8Array>,
-    getInputRootZkey: () => Promise<Uint8Array>
+    getInputRootWasm: (provingSystem: ProvingSystem) => Promise<Uint8Array>,
+    getInputRootZkey: (provingSystem: ProvingSystem) => Promise<Uint8Array>
   ) {
     this.provingKeys.getInputRootWasm = getInputRootWasm;
     this.provingKeys.getInputRootZkey = getInputRootZkey;
@@ -77,8 +77,8 @@ export class PoofKit {
   }
 
   initializeOutputRoot(
-    getOutputRootWasm: () => Promise<Uint8Array>,
-    getOutputRootZkey: () => Promise<Uint8Array>
+    getOutputRootWasm: (provingSystem: ProvingSystem) => Promise<Uint8Array>,
+    getOutputRootZkey: (provingSystem: ProvingSystem) => Promise<Uint8Array>
   ) {
     this.provingKeys.getOutputRootWasm = getOutputRootWasm;
     this.provingKeys.getOutputRootZkey = getOutputRootZkey;
@@ -89,8 +89,8 @@ export class PoofKit {
   }
 
   initializeWithdraw(
-    getWithdrawWasm: () => Promise<Uint8Array>,
-    getWithdrawZkey: () => Promise<Uint8Array>
+    getWithdrawWasm: (provingSystem: ProvingSystem) => Promise<Uint8Array>,
+    getWithdrawZkey: (provingSystem: ProvingSystem) => Promise<Uint8Array>
   ) {
     this.provingKeys.getWithdrawWasm = getWithdrawWasm;
     this.provingKeys.getWithdrawZkey = getWithdrawZkey;
