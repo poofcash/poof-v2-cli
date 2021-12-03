@@ -11,8 +11,8 @@ import { Account } from "./account";
 import MerkleTree from "fixed-merkle-tree";
 import BN from "bn.js";
 import { utils } from "ffjavascript";
-import { Poof } from "./generated/Poof";
 import { ProvingKeys } from "./kit";
+import { ProvingSystem } from "./addresses/deployments";
 
 type DepositParams = {
   account: Account;
@@ -21,6 +21,8 @@ type DepositParams = {
   debt: BN;
   unitPerUnderlying: BN;
   accountCommitments: BN[];
+  provingSystem: ProvingSystem;
+  merkleTreeHeight: number;
 };
 
 type WithdrawParams = {
@@ -35,20 +37,20 @@ type WithdrawParams = {
   fee: BN;
   relayer: 0 | string;
   accountCommitments: BN[];
+  provingSystem: ProvingSystem;
+  merkleTreeHeight: number;
 };
 
 type ProofDep = {
-  getWasm: () => Promise<Uint8Array>;
-  getZkey: () => Promise<Uint8Array>;
+  getWasm: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getZkey: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
 };
 
 export class Controller {
-  private merkleTreeHeight: number;
   private provingKeys: ProvingKeys;
   private getSnarkJs: () => any;
 
-  constructor({ merkleTreeHeight = 20, getSnarkJs, provingKeys }) {
-    this.merkleTreeHeight = Number(merkleTreeHeight);
+  constructor({ getSnarkJs, provingKeys }) {
     this.getSnarkJs = getSnarkJs;
     this.provingKeys = provingKeys;
   }
@@ -66,26 +68,31 @@ export class Controller {
     };
   }
 
-  async getProof(input: any, dep: ProofDep) {
+  async getProof(input: any, dep: ProofDep, provingSystem: ProvingSystem) {
     const snarkJs = this.getSnarkJs();
-    const { proof: depositProofData } = await snarkJs.plonk.fullProve(
+    const { proof: depositProofData } = await snarkJs[
+      provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
+    ].fullProve(
       utils.stringifyBigInts(input),
-      await dep.getWasm(),
-      await dep.getZkey()
+      await dep.getWasm(provingSystem),
+      await dep.getZkey(provingSystem)
     );
     return (
-      await snarkJs.plonk.exportSolidityCallData(
-        utils.unstringifyBigInts(depositProofData),
-        []
-      )
+      await snarkJs[
+        provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
+      ].exportSolidityCallData(utils.unstringifyBigInts(depositProofData), [])
     ).split(",")[0];
   }
 
-  async getProofs(inputs: any[], deps: ProofDep[]) {
+  async getProofs(
+    inputs: any[],
+    deps: ProofDep[],
+    provingSystem: ProvingSystem
+  ) {
     return await Promise.all(
       inputs.map(async (input, idx) => {
         const dep = deps[idx];
-        return await this.getProof(input, dep);
+        return await this.getProof(input, dep, provingSystem);
       })
     );
   }
@@ -97,6 +104,8 @@ export class Controller {
     unitPerUnderlying,
     publicKey,
     accountCommitments,
+    provingSystem,
+    merkleTreeHeight,
   }: DepositParams) {
     const newAmount = account.amount.add(amount);
     const newDebt = account.debt.sub(debt);
@@ -105,16 +114,12 @@ export class Controller {
       debt: newDebt.toString(),
     });
 
-    const accountTree = new MerkleTree(
-      this.merkleTreeHeight,
-      accountCommitments,
-      {
-        hashFunction: poseidonHash2,
-      }
-    );
+    const accountTree = new MerkleTree(merkleTreeHeight, accountCommitments, {
+      hashFunction: poseidonHash2,
+    });
     const zeroAccount = {
-      pathElements: new Array(this.merkleTreeHeight).fill(0),
-      pathIndices: new Array(this.merkleTreeHeight).fill(0),
+      pathElements: new Array(merkleTreeHeight).fill(0),
+      pathIndices: new Array(merkleTreeHeight).fill(0),
     };
     const accountIndex = accountTree.indexOf(
       account.commitment,
@@ -181,20 +186,24 @@ export class Controller {
       },
     ];
 
-    const proofs = await this.getProofs(inputs, [
-      {
-        getWasm: this.provingKeys.getDepositWasm,
-        getZkey: this.provingKeys.getDepositZkey,
-      },
-      {
-        getWasm: this.provingKeys.getInputRootWasm,
-        getZkey: this.provingKeys.getInputRootZkey,
-      },
-      {
-        getWasm: this.provingKeys.getOutputRootWasm,
-        getZkey: this.provingKeys.getOutputRootZkey,
-      },
-    ]);
+    const proofs = await this.getProofs(
+      inputs,
+      [
+        {
+          getWasm: this.provingKeys.getDepositWasm,
+          getZkey: this.provingKeys.getDepositZkey,
+        },
+        {
+          getWasm: this.provingKeys.getInputRootWasm,
+          getZkey: this.provingKeys.getInputRootZkey,
+        },
+        {
+          getWasm: this.provingKeys.getOutputRootWasm,
+          getZkey: this.provingKeys.getOutputRootZkey,
+        },
+      ],
+      provingSystem
+    );
 
     const args = {
       amount: toFixedHex(amount),
@@ -232,6 +241,8 @@ export class Controller {
     fee = toBN(0),
     relayer = 0,
     accountCommitments,
+    provingSystem,
+    merkleTreeHeight,
   }: WithdrawParams) {
     const amount = withdrawAmount.add(fee);
     const newAmount = account.amount.sub(amount);
@@ -241,13 +252,9 @@ export class Controller {
       debt: newDebt.toString(),
     });
 
-    const accountTree = new MerkleTree(
-      this.merkleTreeHeight,
-      accountCommitments,
-      {
-        hashFunction: poseidonHash2,
-      }
-    );
+    const accountTree = new MerkleTree(merkleTreeHeight, accountCommitments, {
+      hashFunction: poseidonHash2,
+    });
     const accountIndex = accountTree.indexOf(account.commitment, (a, b) =>
       a.eq(b)
     );
@@ -321,20 +328,24 @@ export class Controller {
       },
     ];
 
-    const proofs = await this.getProofs(inputs, [
-      {
-        getWasm: this.provingKeys.getWithdrawWasm,
-        getZkey: this.provingKeys.getWithdrawZkey,
-      },
-      {
-        getWasm: this.provingKeys.getInputRootWasm,
-        getZkey: this.provingKeys.getInputRootZkey,
-      },
-      {
-        getWasm: this.provingKeys.getOutputRootWasm,
-        getZkey: this.provingKeys.getOutputRootZkey,
-      },
-    ]);
+    const proofs = await this.getProofs(
+      inputs,
+      [
+        {
+          getWasm: this.provingKeys.getWithdrawWasm,
+          getZkey: this.provingKeys.getWithdrawZkey,
+        },
+        {
+          getWasm: this.provingKeys.getInputRootWasm,
+          getZkey: this.provingKeys.getInputRootZkey,
+        },
+        {
+          getWasm: this.provingKeys.getOutputRootWasm,
+          getZkey: this.provingKeys.getOutputRootZkey,
+        },
+      ],
+      provingSystem
+    );
 
     const args = {
       amount: toFixedHex(amount),
@@ -365,7 +376,11 @@ export class Controller {
     };
   }
 
-  async treeUpdate(commitment: any, accountTree: any) {
+  async treeUpdate(
+    commitment: any,
+    accountTree: any,
+    provingSystem: ProvingSystem
+  ) {
     const accountTreeUpdate = this._updateTree(accountTree, commitment);
 
     const input = {
@@ -378,8 +393,8 @@ export class Controller {
 
     const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
       utils.stringifyBigInts(input),
-      this.provingKeys.getTreeUpdateWasm(),
-      this.provingKeys.getTreeUpdateZkey()
+      this.provingKeys.getTreeUpdateWasm(provingSystem),
+      this.provingKeys.getTreeUpdateZkey(provingSystem)
     );
     const [proof] = (
       await this.getSnarkJs().plonk.exportSolidityCallData(

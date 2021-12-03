@@ -12,7 +12,7 @@ import axios from "axios";
 import { Controller } from "./controller";
 import { Account } from "./account";
 import { getEncryptionPublicKey } from "eth-sig-util";
-import { deployments } from "./addresses/deployments";
+import { deployments, ProvingSystem } from "./addresses/deployments";
 import { ERC20 } from "./generated/ERC20";
 import BN from "bn.js";
 import { Poof } from "./generated/Poof";
@@ -29,16 +29,16 @@ export type PoofDeposit = {
 };
 
 export type ProvingKeys = {
-  getDepositWasm?: () => Promise<Uint8Array>;
-  getDepositZkey?: () => Promise<Uint8Array>;
-  getWithdrawWasm?: () => Promise<Uint8Array>;
-  getWithdrawZkey?: () => Promise<Uint8Array>;
-  getInputRootWasm?: () => Promise<Uint8Array>;
-  getInputRootZkey?: () => Promise<Uint8Array>;
-  getOutputRootWasm?: () => Promise<Uint8Array>;
-  getOutputRootZkey?: () => Promise<Uint8Array>;
-  getTreeUpdateWasm?: () => Promise<Uint8Array>;
-  getTreeUpdateZkey?: () => Promise<Uint8Array>;
+  getDepositWasm?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getDepositZkey?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getWithdrawWasm?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getWithdrawZkey?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getInputRootWasm?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getInputRootZkey?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getOutputRootWasm?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getOutputRootZkey?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getTreeUpdateWasm?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
+  getTreeUpdateZkey?: (provingSystem: ProvingSystem) => Promise<Uint8Array>;
 };
 
 export class PoofKit {
@@ -144,12 +144,14 @@ export class PoofKit {
   async pBalance(currency: string, owner: string) {
     const poolMatch = await this.poolMatch(currency);
     if (poolMatch) {
-      const { poolAddress } = poolMatch;
-      const token = new this.web3.eth.Contract(
-        ERC20Artifact.abi as AbiItem[],
-        poolAddress
-      );
-      return await token.methods.balanceOf(owner).call();
+      const { pTokenAddress } = poolMatch;
+      if (pTokenAddress) {
+        const token = new this.web3.eth.Contract(
+          ERC20Artifact.abi as AbiItem[],
+          pTokenAddress
+        );
+        return await token.methods.balanceOf(owner).call();
+      }
     }
     return null;
   }
@@ -223,6 +225,8 @@ export class PoofKit {
       accountCommitments: accountEvents
         .sort((a, b) => a.returnValues.index - b.returnValues.index)
         .map((e) => toBN(e.returnValues.commitment)),
+      provingSystem: poolMatch.provingSystem,
+      merkleTreeHeight: poolMatch.merkleTreeHeight,
     });
     return poof.methods[debt.eq(toBN(0)) ? "deposit" : "burn"](proofs, args);
   }
@@ -318,6 +322,8 @@ export class PoofKit {
       accountCommitments: accountEvents
         .sort((a, b) => a.returnValues.index - b.returnValues.index)
         .map((e) => toBN(e.returnValues.commitment)),
+      provingSystem: poolMatch.provingSystem,
+      merkleTreeHeight: poolMatch.merkleTreeHeight,
     });
     const isWithdraw = debt.eq(toBN(0));
     if (relayerURL) {

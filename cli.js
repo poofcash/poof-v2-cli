@@ -12,13 +12,13 @@ const ERC20Artifact = require("./dist/artifacts/ERC20.json");
 const { PRIVATE_KEY, RPC_URL, POOF_PRIVATE_KEY } = process.env;
 const web3 = new Web3(RPC_URL);
 const { address: senderAccount } = web3.eth.accounts.wallet.add(PRIVATE_KEY);
+const poofKit = new PoofKit(web3);
 
-let poofKit, netId, explorer, gasPrice, depsInitialized;
+let netId, explorer, gasPrice, depsInitialized;
 const gas = 1.7e6;
 
-const init = async (skipDeps) => {
+const init = async (skipDeps, provingSystem) => {
   netId = await web3.eth.getChainId();
-  poofKit = poofKit || new PoofKit(web3); // Only initialize once
   poofKit.initialize(() => snarkjs);
   explorer = {
     44787: "https://alfajores-blockscout.celo-testnet.org",
@@ -48,8 +48,12 @@ const init = async (skipDeps) => {
   if (!skipDeps && !depsInitialized) {
     // Initialize deps
     await getProofDeps([
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz",
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2.wasm.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/Deposit.wasm.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/Deposit2_circuit_final.zkey.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/Deposit_circuit_final.zkey.gz",
     ]).then((deps) =>
       poofKit.initializeDeposit(
         async () => deps[0],
@@ -57,8 +61,12 @@ const init = async (skipDeps) => {
       )
     );
     await getProofDeps([
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz",
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2.wasm.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/Withdraw.wasm.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/Withdraw2_circuit_final.zkey.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/Withdraw_circuit_final.zkey.gz",
     ]).then((deps) =>
       poofKit.initializeWithdraw(
         async () => deps[0],
@@ -66,8 +74,12 @@ const init = async (skipDeps) => {
       )
     );
     await getProofDeps([
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/InputRoot.wasm.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/InputRoot_circuit_final.zkey.gz",
     ]).then((deps) =>
       poofKit.initializeInputRoot(
         async () => deps[0],
@@ -75,8 +87,12 @@ const init = async (skipDeps) => {
       )
     );
     await getProofDeps([
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
-      "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/OutputRoot.wasm.gz",
+      provingSystem === 1
+        ? "https://poof.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz"
+        : "https://poofgroth.nyc3.cdn.digitaloceanspaces.com/OutputRoot_circuit_final.zkey.gz",
     ]).then((deps) =>
       poofKit.initializeOutputRoot(
         async () => deps[0],
@@ -89,9 +105,9 @@ const init = async (skipDeps) => {
 
 const approve = async (argv) => {
   await init();
-  const { currency } = argv;
+  const { currency, amount } = argv;
   const poolMatch = await poofKit.poolMatch(currency);
-  const approveTxo = await poofKit.approve(currency, toWei("100"));
+  const approveTxo = await poofKit.approve(currency, toWei(amount));
   const params = {
     from: senderAccount,
     to: poolMatch.tokenAddress,
@@ -107,9 +123,9 @@ const approve = async (argv) => {
 };
 
 const deposit = async (argv) => {
-  await init();
   const { currency, amount } = argv;
   const poolMatch = await poofKit.poolMatch(currency);
+  await init(false, poolMatch.provingSystem);
   const depositTxo = await poofKit.deposit(
     POOF_PRIVATE_KEY,
     currency,
@@ -134,9 +150,9 @@ const deposit = async (argv) => {
 };
 
 const burn = async (argv) => {
-  await init();
   const { currency, amount } = argv;
   const poolMatch = await poofKit.poolMatch(currency);
+  await init(false, poolMatch.provingSystem);
   const burnTxo = await poofKit.deposit(
     POOF_PRIVATE_KEY,
     currency,
@@ -158,9 +174,9 @@ const burn = async (argv) => {
 };
 
 const withdraw = async (argv) => {
-  await init();
   const { currency, amount, recipient, relayerUrl } = argv;
   const poolMatch = await poofKit.poolMatch(currency);
+  await init(false, poolMatch.provingSystem);
   const res = await poofKit.withdraw(
     POOF_PRIVATE_KEY,
     currency,
@@ -187,9 +203,9 @@ const withdraw = async (argv) => {
 };
 
 const mint = async (argv) => {
-  await init();
   const { currency, amount, recipient, relayerUrl } = argv;
   const poolMatch = await poofKit.poolMatch(currency);
+  await init(false, poolMatch.provingSystem);
   const res = await poofKit.withdraw(
     POOF_PRIVATE_KEY,
     currency,
@@ -219,25 +235,22 @@ const balances = async (argv) => {
   await init(true);
   const { currency } = argv;
   const account = await poofKit.getLatestAccount(POOF_PRIVATE_KEY, currency);
-  const poolMatch = await poofKit.poolMatch(currency);
+  const { symbol, pSymbol, pTokenAddress } = await poofKit.poolMatch(currency);
   const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
   console.log(
     `Private balance: ${
       account ? fromWei(account.amount.div(unitPerUnderlying)) : 0
-    } ${poolMatch.symbol}`
+    } ${symbol}`
   );
   console.log(
-    `Private debt: ${account ? fromWei(account.debt) : 0} ${poolMatch.pSymbol}`
+    `Private debt: ${account ? fromWei(account.debt) : 0} ${pSymbol}`
   );
 
   const balance = await poofKit.balance(currency, senderAccount);
-  const pToken = new web3.eth.Contract(
-    ERC20Artifact.abi,
-    poolMatch.poolAddress
-  );
+  const pToken = new web3.eth.Contract(ERC20Artifact.abi, pTokenAddress);
   const debt = await pToken.methods.balanceOf(senderAccount).call();
-  console.log(`Public balance: ${fromWei(balance)} ${poolMatch.symbol}`);
-  console.log(`Public debt: ${fromWei(debt)} ${poolMatch.pSymbol}`);
+  console.log(`Public balance: ${fromWei(balance)} ${symbol}`);
+  console.log(`Public debt: ${fromWei(debt)} ${pSymbol}`);
 };
 
 const getExplorerTx = (hash) => {
@@ -263,12 +276,16 @@ yargs
     }
   )
   .command(
-    "approve <currency>",
-    "Allow for 100 units of an ERC20 token",
+    "approve <currency> <amount>",
+    "Allow Poof pool to spend",
     (yargs) => {
       yargs.positional("currency", {
         type: "string",
         describe: "The ERC20 symbol to approve",
+      });
+      yargs.positional("amount", {
+        type: "string",
+        describe: "The amount to approve",
       });
     },
     approve

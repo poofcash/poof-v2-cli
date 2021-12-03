@@ -1,6 +1,6 @@
 {
   "name": "@poofcash/poof-v2-kit",
-  "version": "0.2.8-h",
+  "version": "0.2.8-i",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,7 +28,7 @@
     "fflate": "^0.7.1",
     "fixed-merkle-tree": "^0.3.4",
     "gas-price-oracle": "^0.2.2",
-    "snarkjs": "^0.4.7",
+    "snarkjs": "npm:@poofcash/snarkjs@0.0.2",
     "typechain": "^5.1.2",
     "web3": "^1.5.1",
     "web3-eth-contract": "^1.5.1",
