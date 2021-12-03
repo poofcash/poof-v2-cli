@@ -330,7 +330,10 @@ export class PoofKit {
     if (relayerURL) {
       console.info("Sending withdraw transaction through relay");
       try {
-        const endpoint = isWithdraw ? "/v3/withdraw" : "/v3/mint";
+        const version = poolMatch.provingSystem === 1 ? "v3" : "v4";
+        const endpoint = isWithdraw
+          ? `/${version}/withdraw`
+          : `/${version}/mint`;
         const relay = await axios.post(relayerURL + endpoint, {
           contract: poolAddress,
           proofs,
