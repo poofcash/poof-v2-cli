@@ -112,6 +112,7 @@ export class Controller {
     const newAccount = new Account({
       amount: newAmount.toString(),
       debt: newDebt.toString(),
+      previousAccountIdx: account.accountIdx?.toString(),
     });
 
     const accountTree = new MerkleTree(merkleTreeHeight, accountCommitments, {
@@ -121,12 +122,10 @@ export class Controller {
       pathElements: new Array(merkleTreeHeight).fill(0),
       pathIndices: new Array(merkleTreeHeight).fill(0),
     };
-    const accountIndex = accountTree.indexOf(
-      account.commitment,
-      (a: any, b: any) => a.eq(b)
-    );
     const accountPath =
-      accountIndex !== -1 ? accountTree.path(accountIndex) : zeroAccount;
+      account.accountIdx !== undefined
+        ? accountTree.path(account.accountIdx)
+        : zeroAccount;
     const accountTreeUpdate = this._updateTree(
       accountTree,
       newAccount.commitment
@@ -250,20 +249,18 @@ export class Controller {
     const newAccount = new Account({
       amount: newAmount.toString(),
       debt: newDebt.toString(),
+      previousAccountIdx: account.accountIdx.toString(),
     });
 
     const accountTree = new MerkleTree(merkleTreeHeight, accountCommitments, {
       hashFunction: poseidonHash2,
     });
-    const accountIndex = accountTree.indexOf(account.commitment, (a, b) =>
-      a.eq(b)
-    );
-    if (accountIndex === -1) {
+    if (account.accountIdx === undefined) {
       throw new Error(
         "The accounts tree does not contain such account commitment"
       );
     }
-    const accountPath = accountTree.path(accountIndex);
+    const accountPath = accountTree.path(account.accountIdx);
     const accountTreeUpdate = this._updateTree(
       accountTree,
       newAccount.commitment

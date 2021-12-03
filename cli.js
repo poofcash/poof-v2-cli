@@ -237,6 +237,10 @@ const balances = async (argv) => {
   const account = await poofKit.getLatestAccount(POOF_PRIVATE_KEY, currency);
   const { symbol, pSymbol, pTokenAddress } = await poofKit.poolMatch(currency);
   const unitPerUnderlying = await poofKit.unitPerUnderlying(currency);
+  console.log(`Account index: ${account && account.accountIdx}`);
+  console.log(
+    `Previous account index: ${account && account.previousAccountIdx}`
+  );
   console.log(
     `Private balance: ${
       account ? fromWei(account.amount.div(unitPerUnderlying)) : 0

@@ -9,6 +9,8 @@ export class Account {
   public secret: BN;
   public nullifier: BN;
   public salt: BN;
+  public accountIdx?: BN;
+  public previousAccountIdx?: BN;
 
   public accountHash: BN;
   public commitment: BN;
@@ -19,16 +21,24 @@ export class Account {
     debt,
     secret,
     nullifier,
+    accountIdx,
+    previousAccountIdx,
   }: {
     amount?: string;
     debt?: string;
     secret?: string;
     nullifier?: string;
+    accountIdx?: number;
+    previousAccountIdx?: string | number;
   } = {}) {
     this.amount = amount ? toBN(amount.toString()) : toBN("0");
     this.debt = debt ? toBN(debt.toString()) : toBN("0");
     this.secret = secret ? toBN(secret.toString()) : randomBN(31);
     this.nullifier = nullifier ? toBN(nullifier.toString()) : randomBN(31);
+    this.accountIdx = accountIdx ? toBN(accountIdx) : undefined;
+    this.previousAccountIdx = previousAccountIdx
+      ? toBN(previousAccountIdx)
+      : undefined;
     this.salt = randomBN(31);
 
     this.commitment = poseidonHash([
@@ -60,6 +70,9 @@ export class Account {
       this.debt.toBuffer("be", 31),
       this.secret.toBuffer("be", 31),
       this.nullifier.toBuffer("be", 31),
+      ...(this.previousAccountIdx
+        ? [this.previousAccountIdx.toBuffer("be", 31)]
+        : []),
     ]);
     return encrypt(
       pubkey,
@@ -68,7 +81,7 @@ export class Account {
     );
   }
 
-  static decrypt(privkey: string, data: EthEncryptedData) {
+  static decrypt(privkey: string, data: EthEncryptedData, accountIdx: number) {
     const decryptedMessage = decrypt(data, privkey);
     const buf = Buffer.from(decryptedMessage, "base64");
     return new Account({
@@ -76,6 +89,11 @@ export class Account {
       debt: "0x" + buf.slice(31, 62).toString("hex"),
       secret: "0x" + buf.slice(62, 93).toString("hex"),
       nullifier: "0x" + buf.slice(93, 124).toString("hex"),
+      accountIdx,
+      previousAccountIdx:
+        buf.length > 124
+          ? "0x" + buf.slice(124, 155).toString("hex")
+          : undefined,
     });
   }
 }

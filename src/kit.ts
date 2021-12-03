@@ -290,7 +290,8 @@ export class PoofKit {
       const relayerStatus = await axios.get(relayerURL + "/status");
       const { celoPrices, rewardAccount, poofServiceFee, gasPrices } =
         relayerStatus.data;
-      const currencyCeloPrice = celoPrices[poolMatch.symbol.toLowerCase()];
+      const currencyCeloPrice =
+        celoPrices[poolMatch.symbol.split("_")[0].toLowerCase()];
       const gasPrice = Number(gasPrices["min"]);
       // Fee can come from amount or debt
       const feeFrom = amountInUnits.eq(toBN(0))
@@ -433,7 +434,8 @@ export class PoofKit {
           try {
             Account.decrypt(
               privateKey,
-              unpackEncryptedMessage(e.returnValues.encryptedAccount)
+              unpackEncryptedMessage(e.returnValues.encryptedAccount),
+              e.returnValues.index
             );
             return true;
           } catch (e) {}
@@ -442,7 +444,8 @@ export class PoofKit {
         .map((e) => {
           const account = Account.decrypt(
             privateKey,
-            unpackEncryptedMessage(e.returnValues.encryptedAccount)
+            unpackEncryptedMessage(e.returnValues.encryptedAccount),
+            e.returnValues.index
           );
           const transactionHash = e.transactionHash;
           return {
@@ -482,7 +485,8 @@ export class PoofKit {
           try {
             Account.decrypt(
               privateKey,
-              unpackEncryptedMessage(e.returnValues.encryptedAccount)
+              unpackEncryptedMessage(e.returnValues.encryptedAccount),
+              e.returnValues.index
             );
             return true;
           } catch (e) {}
@@ -492,9 +496,10 @@ export class PoofKit {
         return undefined;
       }
       const eventCommitment = event.returnValues.commitment;
-      const account = Account.decrypt(
+      let account = Account.decrypt(
         privateKey,
-        unpackEncryptedMessage(event.returnValues.encryptedAccount)
+        unpackEncryptedMessage(event.returnValues.encryptedAccount),
+        event.returnValues.index
       );
       const accountCommitment = toFixedHex(account.commitment);
 
@@ -502,11 +507,12 @@ export class PoofKit {
         console.info(
           "Commitment mismatch. Trying to update with a negative debt"
         );
-        return new Account({
+        account = new Account({
           amount: account.amount.toString(),
           debt: account.debt.mul(toBN(-1)).toString(),
           nullifier: account.nullifier.toString(),
           secret: account.secret.toString(),
+          previousAccountIdx: account.previousAccountIdx?.toString(),
         });
       }
       return account;

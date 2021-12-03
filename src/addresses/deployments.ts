@@ -61,6 +61,33 @@ const v2Deployment = ({
 
 export const deployments: Record<string | number, Array<Pool>> = {
   42220: [
+    v2Deployment({
+      poolAddress: "0x5e1a05E9797aB64841792Bcd320D0EFDB1Ab70ac",
+      tokenAddress: "0x471EcE3750Da237f93B8E339c536989b8978a438",
+      pTokenAddress: "0x301a61D01A63c8D670c2B8a43f37d12eF181F997",
+      symbol: "CELO",
+      pSymbol: "pCELO",
+      decimals: 18,
+      creationBlock: 9419623,
+    }),
+    v2Deployment({
+      poolAddress: "0xbd5c0877b524eEA37B48E67C012bcE1916EA3F97",
+      tokenAddress: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+      pTokenAddress: "0xEadf4A7168A82D30Ba0619e64d5BCf5B30B45226",
+      symbol: "cUSD",
+      pSymbol: "pUSD",
+      decimals: 18,
+      creationBlock: 9419624,
+    }),
+    v2Deployment({
+      poolAddress: "0x8F29EB2A9Dc44cb1A4FFeD64EDa398Aba34BAEd0",
+      tokenAddress: "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73",
+      pTokenAddress: "0xD8761DD6c7cB54febD33adD699F5E4440b62E01B",
+      symbol: "cEUR",
+      pSymbol: "pEUR",
+      decimals: 18,
+      creationBlock: 9419625,
+    }),
     v1Deployment({
       poolAddress: "0xE74AbF23E1Fdf7ACbec2F3a30a772eF77f1601E1",
       tokenAddress: "0x471EcE3750Da237f93B8E339c536989b8978a438",
