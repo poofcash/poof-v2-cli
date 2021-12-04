@@ -144,33 +144,6 @@ export const deployments: Record<string | number, Array<Pool>> = {
       decimals: 18,
       creationBlock: 7863538,
     }),
-    v1Deployment({
-      poolAddress: "0xC70AeD458BcE450999425C53Ce11F99fC34a8203",
-      tokenAddress: "0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9",
-      pTokenAddress: "0xC70AeD458BcE450999425C53Ce11F99fC34a8203",
-      symbol: "CELO",
-      pSymbol: "pCELO",
-      decimals: 18,
-      creationBlock: 7863536,
-    }),
-    v1Deployment({
-      poolAddress: "0x9d8D44f68642668980Af3f3e32Ad31682e41bEf4",
-      tokenAddress: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-      pTokenAddress: "0x9d8D44f68642668980Af3f3e32Ad31682e41bEf4",
-      symbol: "cUSD",
-      pSymbol: "pUSD",
-      decimals: 18,
-      creationBlock: 7863537,
-    }),
-    v1Deployment({
-      poolAddress: "0xD5db1B389948dA50b190579De818e0d081a87D48",
-      tokenAddress: "0x10c892A6EC43a53E45D0B916B4b7D383B1b78C0F",
-      pTokenAddress: "0xD5db1B389948dA50b190579De818e0d081a87D48",
-      symbol: "cEUR",
-      pSymbol: "pEUR",
-      decimals: 18,
-      creationBlock: 7863538,
-    }),
   ],
   4002: [
     v1Deployment({
