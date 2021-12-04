@@ -39,7 +39,7 @@ const v1Deployment = ({
 
 const v2Deployment = ({
   poolAddress,
-  tokenAddress,
+  tokenAddress = undefined,
   pTokenAddress,
   symbol,
   pSymbol,
@@ -213,6 +213,14 @@ export const deployments: Record<string | number, Array<Pool>> = {
     }),
   ],
   43113: [
+    v2Deployment({
+      poolAddress: "0xe34b0DC9CbF083E877C40Ebd1F54092E078D5753", // 0xCB6b9b4b2D519c0ADdE2142Cc695464c39369aB4
+      pTokenAddress: "0x7F1A67C7321b3d640b514eC9a6642C743669DF4D", // 0xCB6b9b4b2D519c0ADdE2142Cc695464c39369aB4
+      symbol: "AVAX",
+      pSymbol: "pAVAX",
+      decimals: 18,
+      creationBlock: 3103989,
+    }),
     v1Deployment({
       poolAddress: "0x0824C3Ed3bF48E5A0dB14c36a1fa44D68f0D79AC", // 0xCB6b9b4b2D519c0ADdE2142Cc695464c39369aB4
       pTokenAddress: "0x0824C3Ed3bF48E5A0dB14c36a1fa44D68f0D79AC", // 0xCB6b9b4b2D519c0ADdE2142Cc695464c39369aB4

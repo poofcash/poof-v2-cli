@@ -27,8 +27,8 @@ const init = async (skipDeps, provingSystem) => {
     250: "https://explorer.fantom.network",
     80001: "https://mumbai.polygonscan.com",
     137: "https://polygonscan.com",
-    43113: "https://cchain.explorer.avax-test.network",
-    43114: "https://cchain.explorer.avax.network",
+    43113: "https://testnet.snowtrace.io",
+    43114: "https://snowtrace.io",
     42: "https://kovan.etherscan.io",
     1: "https://etherscan.io",
   }[netId];
