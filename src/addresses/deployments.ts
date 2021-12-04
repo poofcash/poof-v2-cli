@@ -231,6 +231,14 @@ export const deployments: Record<string | number, Array<Pool>> = {
     }),
   ],
   43114: [
+    v2Deployment({
+      poolAddress: "0x337ddAD7Fcb34E93a54a7B6df7C8Bae00fA91D09", // 0x71003CE2353C91E05293444A9C3225997CcD353C
+      pTokenAddress: "0xC7D074C525f04B39f21e6f8C84c9FeFcC980f49D", // 0x71003CE2353C91E05293444A9C3225997CcD353C
+      symbol: "AVAX",
+      pSymbol: "pAVAX",
+      decimals: 18,
+      creationBlock: 7775722,
+    }),
     v1Deployment({
       poolAddress: "0xbf03e0f7D8dFB17e4680C4D4748A614968aD5495", // 0x71003CE2353C91E05293444A9C3225997CcD353C
       pTokenAddress: "0xbf03e0f7D8dFB17e4680C4D4748A614968aD5495", // 0x71003CE2353C91E05293444A9C3225997CcD353C
