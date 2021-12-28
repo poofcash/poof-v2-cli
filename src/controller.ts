@@ -396,10 +396,9 @@ export class Controller {
       this.provingKeys.getTreeUpdateZkey(provingSystem)
     );
     const [proof] = (
-      await this.getSnarkJs().plonk.exportSolidityCallData(
-        utils.unstringifyBigInts(proofData),
-        []
-      )
+      await this.getSnarkJs()[
+        provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
+      ].exportSolidityCallData(utils.unstringifyBigInts(proofData), [])
     ).split(",");
 
     const args = {
