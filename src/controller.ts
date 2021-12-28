@@ -388,18 +388,14 @@ export class Controller {
       pathElements: accountTreeUpdate.pathElements,
     };
 
-    const { proof: proofData } = await this.getSnarkJs()[
-      provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
-    ].fullProve(
-      utils.stringifyBigInts(input),
-      this.provingKeys.getTreeUpdateWasm(provingSystem),
-      this.provingKeys.getTreeUpdateZkey(provingSystem)
+    const proof = await this.getProof(
+      input,
+      {
+        getWasm: this.provingKeys.getTreeUpdateWasm,
+        getZkey: this.provingKeys.getTreeUpdateZkey,
+      },
+      provingSystem
     );
-    const [proof] = (
-      await this.getSnarkJs()[
-        provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
-      ].exportSolidityCallData(utils.unstringifyBigInts(proofData), [])
-    ).split(",")[0];
 
     const args = {
       oldRoot: toFixedHex(input.oldRoot),
