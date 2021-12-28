@@ -388,7 +388,9 @@ export class Controller {
       pathElements: accountTreeUpdate.pathElements,
     };
 
-    const { proof: proofData } = await this.getSnarkJs().plonk.fullProve(
+    const { proof: proofData } = await this.getSnarkJs()[
+      provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
+    ].fullProve(
       utils.stringifyBigInts(input),
       this.provingKeys.getTreeUpdateWasm(provingSystem),
       this.provingKeys.getTreeUpdateZkey(provingSystem)
