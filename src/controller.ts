@@ -399,7 +399,7 @@ export class Controller {
       await this.getSnarkJs()[
         provingSystem === ProvingSystem.PLONK ? "plonk" : "groth16"
       ].exportSolidityCallData(utils.unstringifyBigInts(proofData), [])
-    ).split(",");
+    ).split(",")[0];
 
     const args = {
       oldRoot: toFixedHex(input.oldRoot),
