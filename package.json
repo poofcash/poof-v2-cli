@@ -1,6 +1,6 @@
 {
   "name": "@poofcash/poof-v2-kit",
-  "version": "0.3.0-f",
+  "version": "0.3.0-g",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
