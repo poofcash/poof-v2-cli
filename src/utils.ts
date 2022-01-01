@@ -237,7 +237,7 @@ export const getPastEvents = async (
 ) => {
   const events = [];
   const startBlock = fromBlock || 0;
-  const bucketSize = 100_000;
+  const bucketSize = 10_000;
   for (
     let i = Math.floor(startBlock / bucketSize);
     i < Math.ceil(toBlock / bucketSize);
